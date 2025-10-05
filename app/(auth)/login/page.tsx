@@ -38,7 +38,6 @@ export default function LoginPage() {
     try {
       await new Promise((r) => setTimeout(r, 500));
       toast.success("Welcome back 👋");
-      // router.push("/dashboard");
     } catch {
       toast.error("Login failed. Please try again.");
     }
@@ -133,7 +132,7 @@ export default function LoginPage() {
                           </button>
                         </div>
                       </FormControl>
-                      {/* tampilkan error hanya jika user mulai mengetik */}
+
                       {passwordValue.current && <FormMessage />}
                     </FormItem>
                   )}
