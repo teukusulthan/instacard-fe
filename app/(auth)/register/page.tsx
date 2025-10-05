@@ -6,8 +6,9 @@ import Image from "next/image";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
+import { useRouter } from "next/navigation";
+import { Eye, EyeOff, Loader2 } from "lucide-react";
 
-/* shadcn/ui */
 import {
   Form,
   FormControl,
@@ -19,21 +20,21 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { Loader2, Eye, EyeOff } from "lucide-react";
 
 import { RegisterSchema, RegisterValues } from "@/shemas/auth.schema";
+import { registerRequest } from "@/services/auth.services";
 
 export default function RegisterPage() {
+  const router = useRouter();
+
   const [showPassword, setShowPassword] = React.useState(false);
   const [showConfirm, setShowConfirm] = React.useState(false);
-
-  const passwordValue = React.useRef("");
-  const confirmValue = React.useRef("");
 
   const form = useForm<RegisterValues>({
     resolver: zodResolver(RegisterSchema),
     defaultValues: {
       full_name: "",
+      username: "",
       email: "",
       password: "",
       confirmPassword: "",
@@ -42,20 +43,26 @@ export default function RegisterPage() {
     reValidateMode: "onChange",
   });
 
+  const { isSubmitting, isValid } = form.formState;
+
   const onSubmit = async (values: RegisterValues) => {
     try {
-      await new Promise((r) => setTimeout(r, 500));
+      await registerRequest({
+        name: values.full_name,
+        username: values.username,
+        email: values.email,
+        password: values.password,
+      });
       toast.success("Account created! Please sign in.");
+      router.push("/login");
     } catch (e: any) {
       toast.error(e?.message || "Registration failed. Please try again.");
     }
   };
 
-  const { isSubmitting, isValid } = form.formState;
-
   return (
     <div className="min-h-screen grid grid-cols-1 md:grid-cols-2 bg-background">
-      {/* Left: Hero Image */}
+      {/* Left: Image */}
       <div className="relative hidden md:block">
         <Image
           src="https://images.unsplash.com/photo-1628431668031-6e3db588c9e3?q=80&w=1200&auto=format&fit=crop&ixlib=rb-4.1.0"
@@ -67,11 +74,11 @@ export default function RegisterPage() {
         <div className="absolute inset-0 bg-gradient-to-b from-background/10 via-background/20 to-background/60" />
       </div>
 
-      {/* Right: Form area */}
+      {/* Right: Form */}
       <div className="flex flex-col h-full p-6 md:p-10">
         <div className="flex-1 w-full flex items-center justify-center">
           <div className="w-full max-w-sm">
-            <div className="mb-2">
+            <div className="mb-8">
               <h1 className="text-3xl font-semibold tracking-tight">
                 Create account
               </h1>
@@ -83,7 +90,7 @@ export default function RegisterPage() {
             <Form {...form}>
               <form
                 onSubmit={form.handleSubmit(onSubmit)}
-                className="space-y-6"
+                className="space-y-4"
                 noValidate
               >
                 {/* Full name */}
@@ -97,6 +104,25 @@ export default function RegisterPage() {
                         <Input
                           placeholder="John Doe"
                           autoComplete="name"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                {/* Username */}
+                <FormField
+                  control={form.control}
+                  name="username"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Username</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="john_doe"
+                          autoComplete="username"
                           {...field}
                         />
                       </FormControl>
@@ -139,10 +165,6 @@ export default function RegisterPage() {
                             placeholder="••••••••"
                             autoComplete="new-password"
                             {...field}
-                            onChange={(e) => {
-                              field.onChange(e);
-                              passwordValue.current = e.target.value;
-                            }}
                           />
                           <button
                             type="button"
@@ -161,7 +183,7 @@ export default function RegisterPage() {
                           </button>
                         </div>
                       </FormControl>
-                      {passwordValue.current && <FormMessage />}
+                      <FormMessage />
                     </FormItem>
                   )}
                 />
@@ -180,10 +202,6 @@ export default function RegisterPage() {
                             placeholder="••••••••"
                             autoComplete="new-password"
                             {...field}
-                            onChange={(e) => {
-                              field.onChange(e);
-                              confirmValue.current = e.target.value;
-                            }}
                           />
                           <button
                             type="button"
@@ -202,12 +220,11 @@ export default function RegisterPage() {
                           </button>
                         </div>
                       </FormControl>
-                      {confirmValue.current && <FormMessage />}
+                      <FormMessage />
                     </FormItem>
                   )}
                 />
 
-                {/* Submit */}
                 <Button
                   type="submit"
                   className="w-full"
