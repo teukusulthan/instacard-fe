@@ -1,9 +1,23 @@
 import type { Metadata } from "next";
-import { Toaster } from "sonner";
-import { ThemeProvider } from "next-themes";
 import "./globals.css";
+import { ReduxProvider } from "@/providers/ReduxProvider";
 
-export const metadata: Metadata = { title: "Instacard App" };
+export const metadata: Metadata = {
+  title: "Instacard",
+  description: "Manage your links easily",
+};
+
+const themeInit = `
+(function () {
+  try {
+    var t = localStorage.getItem('theme');
+    var dark = t === 'dark' || (!t && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    var root = document.documentElement;
+    if (dark) { root.classList.add('dark'); root.style.colorScheme = 'dark'; }
+    else { root.classList.remove('dark'); root.style.colorScheme = 'light'; }
+  } catch (e) {}
+})();
+`;
 
 export default function RootLayout({
   children,
@@ -12,16 +26,14 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" suppressHydrationWarning>
+      <head>
+        <script
+          id="theme-init"
+          dangerouslySetInnerHTML={{ __html: themeInit }}
+        />
+      </head>
       <body>
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="system"
-          enableSystem
-          storageKey="theme"
-        >
-          {children}
-          <Toaster richColors position="top-center" />
-        </ThemeProvider>
+        <ReduxProvider>{children}</ReduxProvider>
       </body>
     </html>
   );

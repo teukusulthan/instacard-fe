@@ -109,7 +109,6 @@ export default function LoginPage() {
                           <Input
                             type={showPassword ? "text" : "password"}
                             placeholder="••••••••••••••"
-                            autoComplete="current-password"
                             {...field}
                             onChange={(e) => {
                               field.onChange(e);
