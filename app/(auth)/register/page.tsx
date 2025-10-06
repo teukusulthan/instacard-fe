@@ -101,11 +101,7 @@ export default function RegisterPage() {
                     <FormItem>
                       <FormLabel>Full name</FormLabel>
                       <FormControl>
-                        <Input
-                          placeholder="John Doe"
-                          autoComplete="name"
-                          {...field}
-                        />
+                        <Input placeholder="John Doe" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -120,11 +116,7 @@ export default function RegisterPage() {
                     <FormItem>
                       <FormLabel>Username</FormLabel>
                       <FormControl>
-                        <Input
-                          placeholder="john_doe"
-                          autoComplete="username"
-                          {...field}
-                        />
+                        <Input placeholder="john_doe" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -142,7 +134,6 @@ export default function RegisterPage() {
                         <Input
                           type="email"
                           placeholder="you@example.com"
-                          autoComplete="email"
                           {...field}
                         />
                       </FormControl>
@@ -163,24 +154,8 @@ export default function RegisterPage() {
                           <Input
                             type={showPassword ? "text" : "password"}
                             placeholder="••••••••"
-                            autoComplete="new-password"
                             {...field}
                           />
-                          <button
-                            type="button"
-                            aria-label={
-                              showPassword ? "Hide password" : "Show password"
-                            }
-                            onClick={() => setShowPassword((s) => !s)}
-                            className="absolute inset-y-0 right-2 flex items-center text-muted-foreground hover:text-foreground"
-                            tabIndex={-1}
-                          >
-                            {showPassword ? (
-                              <EyeOff className="h-4 w-4" />
-                            ) : (
-                              <Eye className="h-4 w-4" />
-                            )}
-                          </button>
                         </div>
                       </FormControl>
                       <FormMessage />
@@ -200,24 +175,8 @@ export default function RegisterPage() {
                           <Input
                             type={showConfirm ? "text" : "password"}
                             placeholder="••••••••"
-                            autoComplete="new-password"
                             {...field}
                           />
-                          <button
-                            type="button"
-                            aria-label={
-                              showConfirm ? "Hide password" : "Show password"
-                            }
-                            onClick={() => setShowConfirm((s) => !s)}
-                            className="absolute inset-y-0 right-2 flex items-center text-muted-foreground hover:text-foreground"
-                            tabIndex={-1}
-                          >
-                            {showConfirm ? (
-                              <EyeOff className="h-4 w-4" />
-                            ) : (
-                              <Eye className="h-4 w-4" />
-                            )}
-                          </button>
                         </div>
                       </FormControl>
                       <FormMessage />

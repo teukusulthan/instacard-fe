@@ -38,11 +38,11 @@ export async function logoutRequest() {
   }
 }
 
-export async function getMe() {
+export async function verifyRequest() {
   try {
-    const res = await api.get<ApiResponse<any>>("/me");
+    const res = await api.get<ApiResponse<{ id: string }>>("/auth/verify");
     return res.data;
   } catch (e) {
-    throw new Error(getErrMsg(e, "Failed to fetch profile"));
+    throw new Error(getErrMsg(e, "Verify failed"));
   }
 }

@@ -18,6 +18,8 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Loader2, Eye, EyeOff } from "lucide-react";
+import { useAppDispatch } from "@/stores";
+import { loginAndVerify } from "@/stores/auth.slice";
 
 import { LoginSchema, LoginValues } from "@/shemas/auth.schema";
 import { loginRequest } from "@/services/auth.services";
@@ -33,17 +35,17 @@ export default function LoginPage() {
     reValidateMode: "onChange",
   });
 
+  const dispatch = useAppDispatch();
+
   const onSubmit = async (values: LoginValues) => {
     try {
-      await loginRequest(values);
+      await dispatch(loginAndVerify(values)).unwrap();
       toast.success("Welcome back 👋");
       router.push("/dashboard");
     } catch (e: any) {
-      const msg = e?.message || "Login failed. Please try again.";
-      toast.error(msg);
+      toast.error(e?.message || "Login failed");
     }
   };
-
   const { isSubmitting, isValid } = form.formState;
 
   return (
@@ -119,13 +121,7 @@ export default function LoginPage() {
                             onClick={() => setShowPassword((s) => !s)}
                             className="absolute inset-y-0 right-2 flex items-center text-muted-foreground hover:text-foreground"
                             tabIndex={-1}
-                          >
-                            {showPassword ? (
-                              <EyeOff className="h-4 w-4" />
-                            ) : (
-                              <Eye className="h-4 w-4" />
-                            )}
-                          </button>
+                          ></button>
                         </div>
                       </FormControl>
                     </FormItem>

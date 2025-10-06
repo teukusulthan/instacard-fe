@@ -10,6 +10,17 @@ export type LoginPayload = {
   password: string;
 };
 
+export type User = {
+  id: string;
+  email: string;
+  username: string;
+  name: string;
+  bio: string | null;
+  avatar: string | null;
+  banner: string | null;
+  theme: string | null;
+};
+
 export type UserLite = {
   id: string;
   name: string;
@@ -24,3 +35,5 @@ export type RegisterResponse = {
   message: string;
   data: UserLite;
 };
+
+export type VerifyData = { id: string };
