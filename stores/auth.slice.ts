@@ -7,7 +7,7 @@ import {
   logoutRequest,
 } from "@/services/auth.services";
 
-type AuthState = {
+export type AuthState = {
   userId: string | null;
   status: "idle" | "loading" | "authenticated" | "error";
   error: string | null;
@@ -31,18 +31,22 @@ export const verifyToken = createAsyncThunk<string>(
   }
 );
 
-export const loginAndVerify = createAsyncThunk<string, LoginPayload>(
-  "auth/loginAndVerify",
-  async (payload, { rejectWithValue }) => {
-    try {
-      await loginRequest(payload);
-      const verified = await verifyRequest();
-      return verified.data.id;
-    } catch (e: any) {
-      return rejectWithValue(e?.message || "Login failed");
-    }
+export const loginAndVerify = createAsyncThunk<
+  string,
+  LoginPayload,
+  { rejectValue: string }
+>("auth/loginAndVerify", async (payload, { rejectWithValue }) => {
+  try {
+    await loginRequest(payload);
+    const verified = await verifyRequest();
+    const id = verified.data.id;
+    if (!id) throw new Error("Invalid verify response");
+    return id;
+  } catch (e: any) {
+    const msg = e instanceof Error ? e.message : String(e);
+    return rejectWithValue(msg);
   }
-);
+});
 
 export const logout = createAsyncThunk("auth/logout", async () => {
   await logoutRequest();

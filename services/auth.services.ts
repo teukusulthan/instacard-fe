@@ -40,7 +40,9 @@ export async function logoutRequest() {
 
 export async function verifyRequest() {
   try {
-    const res = await api.get<ApiResponse<{ id: string }>>("/auth/verify");
+    const res = await api.get<ApiResponse<{ id: string }>>("/auth/verify", {
+      withCredentials: true,
+    });
     return res.data;
   } catch (e) {
     throw new Error(getErrMsg(e, "Verify failed"));

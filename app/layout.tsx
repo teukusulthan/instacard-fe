@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { ReduxProvider } from "@/providers/ReduxProvider";
+import ToastProvider from "@/providers/ToastProvider";
 
 export const metadata: Metadata = {
   title: "Instacard",
@@ -33,7 +34,10 @@ export default function RootLayout({
         />
       </head>
       <body>
-        <ReduxProvider>{children}</ReduxProvider>
+        <ReduxProvider>
+          <ToastProvider />
+          {children}
+        </ReduxProvider>
       </body>
     </html>
   );

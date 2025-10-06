@@ -5,6 +5,12 @@ import Image from "next/image";
 import { Plus, Copy } from "lucide-react";
 import { FaInstagram, FaSpotify, FaTiktok, FaLinkedin } from "react-icons/fa6";
 import type { IconType } from "react-icons";
+import { toast } from "sonner";
+
+import { useAppDispatch, useAppSelector } from "@/stores/hooks";
+import { selectUserId } from "@/stores/auth.slice";
+import { fetchMe, selectMe, selectUserStatus } from "@/stores/user.slice";
+
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
@@ -27,7 +33,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { toast } from "sonner";
 import { createLinkRequest } from "@/services/link.services";
 
 /* ===== Types ===== */
@@ -59,12 +64,26 @@ const ICONS: Record<string, { label: string; icon: IconType }> = {
 };
 
 export default function DashboardPage() {
-  const profile: Profile = {
-    name: "Teuku Sulthan",
-    bio: "The quick brown fox jumps over the lazy dog.",
-    avatarUrl: "/avatar-placeholder.jpg",
-    handle: "teukusulthan",
-  };
+  const dispatch = useAppDispatch();
+  const userId = useAppSelector(selectUserId);
+  const me = useAppSelector(selectMe);
+  const userStatus = useAppSelector(selectUserStatus);
+
+  React.useEffect(() => {
+    if (userId && (userStatus === "idle" || userStatus === "error")) {
+      dispatch(fetchMe());
+    }
+  }, [dispatch, userId, userStatus]);
+
+  const profile: Profile = React.useMemo(
+    () => ({
+      name: me?.name ?? "—",
+      bio: me?.bio ?? "",
+      avatarUrl: me?.avatar ?? "/avatar-placeholder.jpg",
+      handle: me?.username ?? "",
+    }),
+    [me]
+  );
 
   const [socials, setSocials] = React.useState<SocialItem[]>([
     { key: "instagram", label: "Instagram", icon: FaInstagram },
@@ -96,6 +115,7 @@ export default function DashboardPage() {
   );
 }
 
+/* ===== Top Bar ===== */
 function TopBar({ handle }: { handle: string }) {
   return (
     <div className="flex items-center justify-between gap-3">
@@ -113,6 +133,7 @@ function TopBar({ handle }: { handle: string }) {
   );
 }
 
+/* ===== Editor Panel ===== */
 function EditorPanel({
   profile,
   socials,
@@ -186,6 +207,7 @@ function EditorPanel({
               </button>
             ))}
 
+            {/* Add Social Dialog */}
             <Dialog open={openAddSocial} onOpenChange={setOpenAddSocial}>
               <DialogTrigger asChild>
                 <button
@@ -246,6 +268,7 @@ function EditorPanel({
         </div>
       </div>
 
+      {/* Add Link Dialog */}
       <Dialog open={openAddLink} onOpenChange={setOpenAddLink}>
         <DialogTrigger asChild>
           <Button
@@ -304,6 +327,7 @@ function EditorPanel({
 
       <Separator className="my-8" />
 
+      {/* Link List */}
       {links.length > 0 ? (
         <ul className="space-y-3">
           {links.map((l) => (
@@ -337,6 +361,7 @@ function EditorPanel({
   );
 }
 
+/* ===== Phone Preview ===== */
 function PhonePreview({
   profile,
   socials,

@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
+
 import {
   Form,
   FormControl,
@@ -18,13 +19,16 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Loader2, Eye, EyeOff } from "lucide-react";
-import { useAppDispatch } from "@/stores";
+
+import { useAppDispatch } from "@/stores/hooks";
 import { loginAndVerify } from "@/stores/auth.slice";
 
-import { LoginSchema, LoginValues } from "@/shemas/auth.schema";
-import { loginRequest } from "@/services/auth.services";
+import { LoginSchema, type LoginValues } from "@/shemas/auth.schema";
+
 export default function LoginPage() {
   const router = useRouter();
+  const dispatch = useAppDispatch();
+
   const [showPassword, setShowPassword] = React.useState(false);
   const passwordValue = React.useRef("");
 
@@ -35,17 +39,18 @@ export default function LoginPage() {
     reValidateMode: "onChange",
   });
 
-  const dispatch = useAppDispatch();
-
   const onSubmit = async (values: LoginValues) => {
     try {
       await dispatch(loginAndVerify(values)).unwrap();
       toast.success("Welcome back 👋");
       router.push("/dashboard");
-    } catch (e: any) {
-      toast.error(e?.message || "Login failed");
+    } catch (e) {
+      const msg =
+        typeof e === "string" ? e : (e as any)?.message || "Login failed";
+      toast.error(msg);
     }
   };
+
   const { isSubmitting, isValid } = form.formState;
 
   return (
@@ -90,7 +95,8 @@ export default function LoginPage() {
                       <FormControl>
                         <Input
                           type="text"
-                          placeholder="enter an email or username"
+                          placeholder="you@example.com or username"
+                          autoComplete="username"
                           {...field}
                         />
                       </FormControl>
@@ -109,6 +115,7 @@ export default function LoginPage() {
                           <Input
                             type={showPassword ? "text" : "password"}
                             placeholder="••••••••••••••"
+                            autoComplete="current-password"
                             {...field}
                             onChange={(e) => {
                               field.onChange(e);
@@ -118,9 +125,18 @@ export default function LoginPage() {
                           <button
                             type="button"
                             onClick={() => setShowPassword((s) => !s)}
-                            className="absolute inset-y-0 right-2 flex items-center text-muted-foreground hover:text-foreground"
+                            className="absolute inset-y-0 right-2 grid place-items-center px-2 text-muted-foreground hover:text-foreground"
+                            aria-label={
+                              showPassword ? "Hide password" : "Show password"
+                            }
                             tabIndex={-1}
-                          ></button>
+                          >
+                            {showPassword ? (
+                              <EyeOff className="h-4 w-4" />
+                            ) : (
+                              <Eye className="h-4 w-4" />
+                            )}
+                          </button>
                         </div>
                       </FormControl>
                     </FormItem>
