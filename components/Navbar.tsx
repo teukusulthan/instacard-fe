@@ -1,0 +1,203 @@
+"use client";
+
+import * as React from "react";
+import Link from "next/link";
+import { Copy, Eye, LogOut, Moon, Sun, Pencil } from "lucide-react";
+import { toast } from "sonner";
+
+import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+
+type NavbarProps = {
+  brand?: string;
+  brandHref?: string;
+  profileHandle?: string;
+  baseDomain?: string;
+  previewHref?: string;
+  previewNewTab?: boolean;
+  avatarUrl?: string;
+  userName?: string;
+  onEditProfile?: () => void;
+  onLogout?: () => void;
+  withBorder?: boolean;
+  translucent?: boolean;
+};
+
+function getInitials(name?: string) {
+  if (!name) return "U";
+  return (
+    name
+      .split(" ")
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((n) => n[0]?.toUpperCase())
+      .join("") || "U"
+  );
+}
+
+/* Simple theme switcher without next-themes */
+function useSimpleTheme() {
+  const [theme, setTheme] = React.useState<"light" | "dark">(() => {
+    if (typeof window === "undefined") return "light";
+    const stored = localStorage.getItem("theme");
+    if (stored === "dark" || stored === "light") return stored;
+    const prefersDark = window.matchMedia(
+      "(prefers-color-scheme: dark)"
+    ).matches;
+    return prefersDark ? "dark" : "light";
+  });
+
+  React.useEffect(() => {
+    const root = document.documentElement;
+    if (theme === "dark") root.classList.add("dark");
+    else root.classList.remove("dark");
+    localStorage.setItem("theme", theme);
+  }, [theme]);
+
+  return {
+    theme,
+    toggle: () => setTheme((t) => (t === "dark" ? "light" : "dark")),
+  };
+}
+
+export function Navbar({
+  brand = "Instacard",
+  brandHref = "",
+  profileHandle,
+  baseDomain = "instacard.app",
+  previewHref,
+  previewNewTab = true,
+  avatarUrl,
+  userName,
+  onEditProfile,
+  onLogout,
+  withBorder = true,
+  translucent = true,
+}: NavbarProps) {
+  const url = profileHandle ? `${baseDomain}/${profileHandle}` : null;
+  const defaultPreviewHref =
+    previewHref ?? (profileHandle ? `/${profileHandle}` : "#");
+  const { theme, toggle } = useSimpleTheme();
+
+  return (
+    <header
+      className={[
+        "sticky top-0 z-40 transition-all",
+        translucent
+          ? "bg-background/70 backdrop-blur supports-[backdrop-filter]:bg-background/60"
+          : "bg-background",
+        withBorder ? "border-b" : "",
+        "shadow-sm",
+      ].join(" ")}
+    >
+      <div className="mx-auto w-full max-w-7xl px-5 sm:px-8 lg:px-15">
+        {/* Tinggi sekitar 64px total */}
+        <div className="flex items-center justify-between py-3.5">
+          {/* LEFT SECTION */}
+          <div className="flex items-center gap-3">
+            <Link href={brandHref} className="inline-flex items-center gap-2">
+              <span className=" text-2xl font-bold tracking-tight">
+                Insta<span className="text-primary">Card</span>
+              </span>
+            </Link>
+
+            <Separator
+              orientation="vertical"
+              className="mx-2 h-7 hidden sm:block"
+            />
+
+            {/* See Preview */}
+            <Link
+              href={defaultPreviewHref}
+              target={previewNewTab ? "_blank" : undefined}
+              className="inline-flex"
+            >
+              <Button
+                variant="outline"
+                className="cursor-pointer rounded-full h-9 px-4 text-sm"
+                title="See preview"
+              >
+                <Eye className="mr-2 h-4 w-4" />
+                See preview
+              </Button>
+            </Link>
+          </div>
+
+          {/* RIGHT SECTION */}
+          <div className="flex items-center gap-2.5">
+            {url && (
+              <button
+                type="button"
+                onClick={() => {
+                  navigator.clipboard.writeText(url);
+                  toast.success("Profile URL copied");
+                }}
+                className="hidden md:inline-flex cursor-pointer items-center gap-2 rounded-full border bg-card/70 px-3.5 py-1.5 text-[13px] text-muted-foreground shadow-sm"
+                title="Copy profile URL"
+              >
+                <span className="truncate max-w-[200px]">{url}</span>
+                <Copy className="h-3.5 w-3.5 opacity-70" />
+              </button>
+            )}
+
+            {/* Theme Toggle */}
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-9 w-9 rounded-full cursor-pointer"
+              onClick={toggle}
+              title={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
+            >
+              {theme === "dark" ? (
+                <Sun className="h-4 w-4" />
+              ) : (
+                <Moon className="h-4 w-4" />
+              )}
+            </Button>
+
+            {/* Avatar Dropdown */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  className="outline-none rounded-full focus-visible:ring-2 focus-visible:ring-ring"
+                  aria-label="User menu"
+                >
+                  <Avatar className="h-9 w-9 ring-1 cursor-pointer ring-border">
+                    <AvatarImage
+                      src={avatarUrl || ""}
+                      alt={userName || "User"}
+                    />
+                    <AvatarFallback className="text-[11px] font-medium">
+                      {getInitials(userName)}
+                    </AvatarFallback>
+                  </Avatar>
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-44">
+                <DropdownMenuItem onClick={() => onEditProfile?.()}>
+                  <Pencil /> Edit profile
+                </DropdownMenuItem>
+
+                <DropdownMenuItem
+                  className="text-destructive focus:text-destructive"
+                  onClick={() => onLogout?.()}
+                >
+                  <LogOut className="mr-2 h-4 w-4" />
+                  Logout
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </div>
+      </div>
+    </header>
+  );
+}

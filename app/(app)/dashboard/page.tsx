@@ -4,34 +4,17 @@ import * as React from "react";
 import { Copy, Plus } from "lucide-react";
 import { FaInstagram, FaSpotify, FaTiktok, FaLinkedin } from "react-icons/fa6";
 import type { IconType } from "react-icons";
-import Image from "next/image";
 import { toast } from "sonner";
-
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-
 import { EditProfileDialog } from "@/components/dialogs/EditProfileDialog";
 import { AddSocialDialog } from "@/components/dialogs/AddSocialDialog";
 import { AddLinkDialog } from "@/components/dialogs/AddlinkDialog";
 
-type SocialItem = {
-  key: string;
-  label: string;
-  icon: IconType;
-  url?: string;
-};
-type Profile = {
-  name: string;
-  bio: string;
-  avatarUrl: string;
-  handle: string;
-};
-type LinkItem = {
-  id: string;
-  title: string;
-  url: string;
-};
+type SocialItem = { key: string; label: string; icon: IconType; url?: string };
+type Profile = { name: string; bio: string; avatarUrl: string; handle: string };
+type LinkItem = { id: string; title: string; url: string };
 
 const ICONS: Record<string, { label: string; icon: IconType }> = {
   instagram: { label: "Instagram", icon: FaInstagram },
@@ -97,9 +80,12 @@ export default function DashboardPage() {
   return (
     <main className="min-h-[100dvh] bg-background text-foreground">
       <div className="mx-auto w-full max-w-7xl px-8 sm:px-12 lg:px-16 py-6">
-        <TopBar handle={profile.handle} />
-        <Separator className="my-6" />
-        <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_340px] gap-2 lg:gap-2">
+        <div className="flex items-center justify-between">
+          <h1 className="text-xl font-semibold tracking-tight">Links</h1>
+          <div />
+        </div>
+
+        <div className="grid grid-cols-1 mt-6 lg:grid-cols-[minmax(0,1fr)_340px] gap-2 lg:gap-2">
           <div className="max-w-3xl">
             <EditorPanel
               profile={profile}
@@ -110,41 +96,25 @@ export default function DashboardPage() {
               onAddLink={(l) => setLinks((prev) => [l, ...prev])}
             />
           </div>
+
           <div className="hidden lg:block lg:sticky top-6 self-start lg:-ml-4">
             <PhonePreview profile={profile} socials={socials} />
           </div>
         </div>
       </div>
-    </main>
-  );
-}
 
-function TopBar({ handle }: { handle: string }) {
-  const url = `instacard.app/${handle || ""}`;
-  return (
-    <div className="flex items-center justify-between gap-3">
-      <h1 className="text-xl font-semibold tracking-tight">Links</h1>
-      <div className="flex items-center gap-2.5">
-        <button
-          type="button"
-          onClick={() => {
-            navigator.clipboard.writeText(url);
-            toast.success("URL copied");
-          }}
-          className="hidden md:flex cursor-pointer items-center gap-2 rounded-full border bg-card/70 px-3 py-1.5 text-sm text-muted-foreground shadow-sm"
-          title="Copy profile URL"
-        >
-          <span className="truncate max-w-[240px]">{url}</span>
-          <Copy className="h-3.5 w-3.5 opacity-70" />
-        </button>
-        <Button
-          variant="outline"
-          className="cursor-pointer rounded-full h-8 px-4"
-        >
-          Design
-        </Button>
-      </div>
-    </div>
+      <style jsx global>{`
+        button.fixed.left-4.bottom-4,
+        button.fixed.left-5.bottom-5,
+        button.fixed.left-6.bottom-6,
+        a.fixed.left-4.bottom-4,
+        a.fixed.left-5.bottom-5,
+        a.fixed.left-6.bottom-6,
+        [data-fab="add-link"] {
+          display: none !important;
+        }
+      `}</style>
+    </main>
   );
 }
 
@@ -197,7 +167,7 @@ function EditorPanel({
             </div>
             <Button
               variant="outline"
-              className="cursor-pointer rounded-full h-8 px-4"
+              className="rounded-full h-8 px-4"
               onClick={() => setOpenEdit(true)}
             >
               Edit Profile
@@ -222,7 +192,7 @@ function EditorPanel({
             <Button
               variant="outline"
               size="icon"
-              className="cursor-pointer rounded-full h-10 w-10"
+              className="rounded-full h-10 w-10"
               onClick={() => setOpenAddSocial(true)}
               title="Add social"
             >
@@ -238,7 +208,7 @@ function EditorPanel({
         <p className="text-sm text-muted-foreground">Your Links</p>
         <Button
           variant="outline"
-          className="cursor-pointer rounded-full h-8 px-3"
+          className="rounded-full h-8 px-3"
           onClick={() => setOpenAddLink(true)}
         >
           <Plus className="mr-2 h-4 w-4" />
@@ -262,7 +232,7 @@ function EditorPanel({
               <Button
                 variant="outline"
                 size="icon"
-                className="cursor-pointer rounded-full h-8 w-8"
+                className="rounded-full h-8 w-8"
                 onClick={() => {
                   navigator.clipboard.writeText(l.url);
                   toast.success("Link copied");
