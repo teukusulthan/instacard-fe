@@ -73,7 +73,7 @@ export default function LoginPage() {
           <div className="w-full max-w-sm">
             <div className="mb-8">
               <h1 className="text-3xl mb-2 font-semibold tracking-tight">
-                Sign in
+                Sign in to Insta<span className="text-primary">Card</span>
               </h1>
               <p className="text-sm text-muted-foreground">
                 Continue to your board and manage your links with ease.
