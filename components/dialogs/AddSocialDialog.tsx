@@ -3,7 +3,6 @@
 import * as React from "react";
 import {
   Dialog,
-  DialogTrigger,
   DialogContent,
   DialogHeader,
   DialogTitle,
@@ -21,12 +20,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
-import { Plus } from "lucide-react";
 
-type Platform = {
-  key: string;
-  label: string;
-};
+type Platform = { key: string; label: string };
 
 type Props = {
   open: boolean;
@@ -35,6 +30,10 @@ type Props = {
   onSubmit: (formData: FormData) => void;
 };
 
+/** NOTE:
+ * Tidak merender Trigger sama sekali.
+ * Tombol pembuka ada di halaman (EditorPanel) yang set `open` ke true.
+ */
 export function AddSocialDialog({
   open,
   onOpenChange,
@@ -43,15 +42,6 @@ export function AddSocialDialog({
 }: Props) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogTrigger asChild>
-        <button
-          className="inline-flex h-10 w-10 items-center justify-center rounded-full border bg-background/70 ring-1 ring-border hover:bg-accent transition"
-          aria-label="Add social"
-        >
-          <Plus className="h-[18px] w-[18px]" />
-        </button>
-      </DialogTrigger>
-
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Add social</DialogTitle>

@@ -8,11 +8,50 @@ export type User = {
   bio: string | null;
   avatar: string | null;
   banner: string | null;
-  theme: { mode: "light" | "dark"; accent: string };
-  counts: { links: number; clicks: number };
 };
 
-export async function getMeById(id: string) {
-  const res = await api.get(`/user/me/${id}`);
-  return res.data;
+type ApiResponse<T> = {
+  status?: string;
+  message?: string;
+  data?: T;
+} & Record<string, unknown>;
+
+function unwrap<T>(resData: unknown): T {
+  const d = resData as ApiResponse<T> | T;
+  if (d && typeof d === "object" && "data" in (d as any)) {
+    return (d as ApiResponse<T>).data as T;
+  }
+  return d as T;
+}
+
+export async function getMe(): Promise<User> {
+  const res = await api.get("/user/me");
+  return unwrap<User>(res.data);
+}
+
+export type UpdateMePayload = {
+  name?: string;
+  bio?: string;
+  theme?: string;
+  avatar?: string | null;
+  banner?: string | null;
+  avatarFile?: File | null;
+  bannerFile?: File | null;
+};
+
+export async function updateMe(payload: UpdateMePayload): Promise<User> {
+  const fd = new FormData();
+  if (payload.name !== undefined) fd.append("name", payload.name);
+  if (payload.bio !== undefined) fd.append("bio", payload.bio);
+  if (payload.theme !== undefined) fd.append("theme", payload.theme);
+  if (payload.avatarFile) fd.append("avatar_url", payload.avatarFile);
+  else if (payload.avatar !== undefined)
+    fd.append("avatar", payload.avatar ?? "");
+  if (payload.bannerFile) fd.append("banner", payload.bannerFile);
+  else if (payload.banner !== undefined)
+    fd.append("banner", payload.banner ?? "");
+  const res = await api.patch("/user/me", fd, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
+  return unwrap<User>(res.data);
 }

@@ -1,7 +1,6 @@
 import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
 import type { PayloadAction } from "@reduxjs/toolkit";
-import type { AuthState } from "./auth.slice";
-import { getMeById, type User } from "@/services/user.services";
+import { getMe, type User } from "@/services/user.services";
 
 type UserState = {
   me: User | null;
@@ -15,20 +14,19 @@ const initialState: UserState = {
   error: null,
 };
 
-export const fetchMe = createAsyncThunk<
-  User,
-  void,
-  { state: { auth: AuthState } }
->("user/fetchMe", async (_, { getState, rejectWithValue }) => {
-  try {
-    const id = getState().auth.userId;
-    if (!id) throw new Error("No userId");
-    const res = await getMeById(id);
-    return res.data as User;
-  } catch (e: any) {
-    return rejectWithValue(e?.message || "Failed to fetch user");
+export const fetchMe = createAsyncThunk<User, void, { rejectValue: string }>(
+  "user/fetchMe",
+  async (_, { rejectWithValue }) => {
+    try {
+      const user = await getMe(); // <-- tanpa id
+      if (!user || !user.id) throw new Error("Invalid me response");
+      return user;
+    } catch (e: any) {
+      const msg = e?.message ?? "Failed to fetch user";
+      return rejectWithValue(msg);
+    }
   }
-});
+);
 
 const userSlice = createSlice({
   name: "user",

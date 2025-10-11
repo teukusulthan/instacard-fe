@@ -13,23 +13,23 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { updateMe, type User } from "@/services/user.services";
 
 type Props = {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   initial: { avatarUrl: string; name: string; bio: string };
-  saving?: boolean;
-  onSubmit: (formData: FormData) => Promise<void> | void;
+  onSuccess?: (user: User) => void;
 };
 
 export function EditProfileDialog({
   open,
   onOpenChange,
   initial,
-  saving,
-  onSubmit,
+  onSuccess,
 }: Props) {
   const [preview, setPreview] = React.useState<string>(initial.avatarUrl);
+  const [saving, setSaving] = React.useState(false);
   const fileUrlRef = React.useRef<string | null>(null);
   const formRef = React.useRef<HTMLFormElement | null>(null);
   const fileInputRef = React.useRef<HTMLInputElement | null>(null);
@@ -51,12 +51,10 @@ export function EditProfileDialog({
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
-
     if (fileUrlRef.current) {
       URL.revokeObjectURL(fileUrlRef.current);
       fileUrlRef.current = null;
     }
-
     const url = URL.createObjectURL(file);
     fileUrlRef.current = url;
     setPreview(url);
@@ -64,8 +62,22 @@ export function EditProfileDialog({
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    const fd = new FormData(e.currentTarget);
-    await onSubmit(fd);
+    const form = new FormData(e.currentTarget);
+    const name = (form.get("name") as string) || undefined;
+    const bio = (form.get("bio") as string) || undefined;
+    const file = (form.get("avatar") as File) || null;
+    try {
+      setSaving(true);
+      const user = await updateMe({
+        name,
+        bio,
+        avatarFile: file && file.size > 0 ? file : null,
+      });
+      onSuccess?.(user);
+      onOpenChange(false);
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
@@ -88,11 +100,9 @@ export function EditProfileDialog({
         </DialogHeader>
 
         <form ref={formRef} onSubmit={handleSubmit} className="space-y-6">
-          {/* Avatar Upload */}
           <div className="flex flex-col items-center gap-4 sm:flex-row">
             <div className="shrink-0">
               <div className="h-20 w-20 overflow-hidden rounded-full ring-1 ring-border bg-muted">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={preview || "/placeholder-avatar.png"}
                   alt="Avatar preview"
@@ -117,7 +127,6 @@ export function EditProfileDialog({
             </div>
           </div>
 
-          {/* Full Name */}
           <div className="grid gap-2">
             <Label htmlFor="name">Full Name</Label>
             <Input
@@ -128,7 +137,6 @@ export function EditProfileDialog({
             />
           </div>
 
-          {/* Bio */}
           <div className="grid gap-2">
             <Label htmlFor="bio">Bio</Label>
             <Textarea

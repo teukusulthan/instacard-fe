@@ -2,22 +2,25 @@
 
 import { useEffect } from "react";
 import { useAppDispatch, useAppSelector } from "@/stores/hooks";
-import { verifyToken } from "@/stores/auth.slice";
+import { verifySession } from "@/stores/auth.slice";
 import { fetchMe } from "@/stores/user.slice";
 
 export function useBootstrapAuth() {
   const dispatch = useAppDispatch();
-  const userId = useAppSelector((s) => s.auth.userId);
   const status = useAppSelector((s) => s.auth.status);
+  const authUser = useAppSelector((s) => s.auth.user);
+  const me = useAppSelector((s) => s.user.me);
 
   useEffect(() => {
-    (async () => {
-      try {
-        if (!userId && status !== "loading") {
-          const res = await dispatch(verifyToken()).unwrap();
-          if (res) dispatch(fetchMe());
-        }
-      } catch {}
-    })();
-  }, [dispatch, userId, status]);
+    if ((status === "idle" || status === "error") && !authUser) {
+      (async () => {
+        try {
+          const user = await dispatch(verifySession()).unwrap();
+          if (user && !me) {
+            dispatch(fetchMe());
+          }
+        } catch {}
+      })();
+    }
+  }, [dispatch, status, authUser, me]);
 }

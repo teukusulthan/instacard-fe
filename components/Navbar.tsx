@@ -12,23 +12,25 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { toPublicUrl } from "@/lib/image-url";
 
-type NavbarProps = {
+export type NavbarProps = {
   brand?: string;
   brandHref?: string;
   profileHandle?: string;
+  userName?: string;
+  avatarUrl?: string;
   baseDomain?: string;
   previewHref?: string;
   previewNewTab?: boolean;
-  avatarUrl?: string;
-  userName?: string;
   onEditProfile?: () => void;
   onLogout?: () => void;
   withBorder?: boolean;
   translucent?: boolean;
+  rightActions?: React.ReactNode;
+  showUserNameNearBrand?: boolean;
 };
 
 function getInitials(name?: string) {
@@ -43,7 +45,6 @@ function getInitials(name?: string) {
   );
 }
 
-/* Simple theme switcher without next-themes */
 function useSimpleTheme() {
   const [theme, setTheme] = React.useState<"light" | "dark">(() => {
     if (typeof window === "undefined") return "light";
@@ -72,20 +73,23 @@ export function Navbar({
   brand = "Instacard",
   brandHref = "",
   profileHandle,
+  userName,
+  avatarUrl,
   baseDomain = "instacard.app",
   previewHref,
   previewNewTab = true,
-  avatarUrl,
-  userName,
   onEditProfile,
   onLogout,
   withBorder = true,
   translucent = true,
+  rightActions,
+  showUserNameNearBrand = false,
 }: NavbarProps) {
-  const url = profileHandle ? `${baseDomain}/${profileHandle}` : null;
+  const publicUrl = profileHandle ? `${baseDomain}/${profileHandle}` : null;
   const defaultPreviewHref =
     previewHref ?? (profileHandle ? `/${profileHandle}` : "#");
   const { theme, toggle } = useSimpleTheme();
+  const avatarSrc = toPublicUrl(avatarUrl) || "";
 
   return (
     <header
@@ -98,15 +102,18 @@ export function Navbar({
         "shadow-sm",
       ].join(" ")}
     >
-      <div className="mx-auto w-full max-w-7xl px-5 sm:px-8 lg:px-15">
-        {/* Tinggi sekitar 64px total */}
+      <div className="mx-auto w-full max-w-7xl px-5 sm:px-8 lg:px-26">
         <div className="flex items-center justify-between py-3.5">
-          {/* LEFT SECTION */}
           <div className="flex items-center gap-3">
             <Link href={brandHref} className="inline-flex items-center gap-2">
-              <span className=" text-2xl font-bold tracking-tight">
+              <span className="text-2xl font-bold tracking-tight">
                 Insta<span className="text-primary">Card</span>
               </span>
+              {showUserNameNearBrand && userName ? (
+                <span className="ml-2 hidden sm:inline text-sm text-muted-foreground">
+                  — {userName}
+                </span>
+              ) : null}
             </Link>
 
             <Separator
@@ -114,7 +121,6 @@ export function Navbar({
               className="mx-2 h-7 hidden sm:block"
             />
 
-            {/* See Preview */}
             <Link
               href={defaultPreviewHref}
               target={previewNewTab ? "_blank" : undefined}
@@ -131,24 +137,26 @@ export function Navbar({
             </Link>
           </div>
 
-          {/* RIGHT SECTION */}
           <div className="flex items-center gap-2.5">
-            {url && (
+            {rightActions ? (
+              <div className="hidden sm:block">{rightActions}</div>
+            ) : null}
+
+            {publicUrl && (
               <button
                 type="button"
                 onClick={() => {
-                  navigator.clipboard.writeText(url);
+                  navigator.clipboard.writeText(publicUrl);
                   toast.success("Profile URL copied");
                 }}
                 className="hidden md:inline-flex cursor-pointer items-center gap-2 rounded-full border bg-card/70 px-3.5 py-1.5 text-[13px] text-muted-foreground shadow-sm"
                 title="Copy profile URL"
               >
-                <span className="truncate max-w-[200px]">{url}</span>
+                <span className="truncate max-w-[200px]">{publicUrl}</span>
                 <Copy className="h-3.5 w-3.5 opacity-70" />
               </button>
             )}
 
-            {/* Theme Toggle */}
             <Button
               variant="outline"
               size="icon"
@@ -163,7 +171,6 @@ export function Navbar({
               )}
             </Button>
 
-            {/* Avatar Dropdown */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button
@@ -171,10 +178,7 @@ export function Navbar({
                   aria-label="User menu"
                 >
                   <Avatar className="h-9 w-9 ring-1 cursor-pointer ring-border">
-                    <AvatarImage
-                      src={avatarUrl || ""}
-                      alt={userName || "User"}
-                    />
+                    <AvatarImage src={avatarSrc} alt={userName || "User"} />
                     <AvatarFallback className="text-[11px] font-medium">
                       {getInitials(userName)}
                     </AvatarFallback>
@@ -185,7 +189,6 @@ export function Navbar({
                 <DropdownMenuItem onClick={() => onEditProfile?.()}>
                   <Pencil /> Edit profile
                 </DropdownMenuItem>
-
                 <DropdownMenuItem
                   className="text-destructive focus:text-destructive"
                   onClick={() => onLogout?.()}
@@ -201,3 +204,5 @@ export function Navbar({
     </header>
   );
 }
+
+export default Navbar;
