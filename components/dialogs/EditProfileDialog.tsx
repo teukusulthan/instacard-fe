@@ -14,6 +14,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { updateMe, type User } from "@/services/user.services";
+import { useRouter } from "next/navigation";
 
 type Props = {
   open: boolean;
@@ -33,6 +34,7 @@ export function EditProfileDialog({
   const fileUrlRef = React.useRef<string | null>(null);
   const formRef = React.useRef<HTMLFormElement | null>(null);
   const fileInputRef = React.useRef<HTMLInputElement | null>(null);
+  const router = useRouter();
 
   React.useEffect(() => {
     setPreview(initial.avatarUrl || "");
@@ -75,6 +77,7 @@ export function EditProfileDialog({
       });
       onSuccess?.(user);
       onOpenChange(false);
+      router.refresh();
     } finally {
       setSaving(false);
     }
@@ -95,7 +98,7 @@ export function EditProfileDialog({
         <DialogHeader>
           <DialogTitle>Edit Profile</DialogTitle>
           <DialogDescription>
-            Perbarui avatar, nama lengkap, dan bio kamu.
+            Update your avatar, full name, and bio.
           </DialogDescription>
         </DialogHeader>
 
@@ -122,7 +125,7 @@ export function EditProfileDialog({
                 onChange={handleFileChange}
               />
               <p className="text-xs text-muted-foreground">
-                Format: JPG/PNG/WebP. Maks 5MB.
+                Formats: JPG/PNG/WebP. Max 5MB.
               </p>
             </div>
           </div>
@@ -133,7 +136,7 @@ export function EditProfileDialog({
               id="name"
               name="name"
               defaultValue={initial.name}
-              placeholder="Nama lengkap"
+              placeholder="Your full name"
             />
           </div>
 
@@ -143,7 +146,7 @@ export function EditProfileDialog({
               id="bio"
               name="bio"
               defaultValue={initial.bio}
-              placeholder="Ceritakan tentang dirimu..."
+              placeholder="Tell something about yourself..."
               rows={4}
             />
           </div>
@@ -152,12 +155,13 @@ export function EditProfileDialog({
             <Button
               type="button"
               variant="outline"
+              className="cursor-pointer"
               onClick={() => onOpenChange(false)}
               disabled={saving}
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={saving}>
+            <Button className="cursor-pointer" type="submit" disabled={saving}>
               {saving ? "Saving..." : "Save changes"}
             </Button>
           </DialogFooter>

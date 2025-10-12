@@ -13,19 +13,39 @@ import {
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import { createLink, type LinkItem } from "@/services/link.services";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 
 type Props = {
   open: boolean;
   onOpenChange: (v: boolean) => void;
-  saving?: boolean;
-  onSubmit: (formData: FormData) => Promise<void> | void;
+  onCreated?: (item: LinkItem) => void;
 };
 
-/** NOTE:
- * Tidak merender Trigger sama sekali.
- * Trigger dikendalikan dari luar via state `open`.
- */
-export function AddLinkDialog({ open, onOpenChange, saving, onSubmit }: Props) {
+export function AddLinkDialog({ open, onOpenChange, onCreated }: Props) {
+  const [saving, setSaving] = React.useState(false);
+  const router = useRouter();
+
+  async function handleSubmit(formData: FormData) {
+    const title = String(formData.get("title") || "").trim();
+    const url = String(formData.get("url") || "").trim();
+    if (!title || !url) return;
+
+    try {
+      setSaving(true);
+      const created = await createLink({ title, url });
+      onCreated?.(created);
+      toast.success("Link created");
+      onOpenChange(false);
+      router.refresh();
+    } catch (e: any) {
+      toast.error(e?.message ?? "Create link failed");
+    } finally {
+      setSaving(false);
+    }
+  }
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
@@ -36,7 +56,7 @@ export function AddLinkDialog({ open, onOpenChange, saving, onSubmit }: Props) {
           </DialogDescription>
         </DialogHeader>
 
-        <form action={onSubmit} className="grid gap-4">
+        <form action={handleSubmit} className="grid gap-4">
           <div className="grid gap-2">
             <Label htmlFor="title">Title</Label>
             <Input
@@ -60,11 +80,16 @@ export function AddLinkDialog({ open, onOpenChange, saving, onSubmit }: Props) {
 
           <DialogFooter className="mt-2">
             <DialogClose asChild>
-              <Button type="button" variant="ghost" disabled={!!saving}>
+              <Button
+                className="cursor-pointer"
+                type="button"
+                variant="ghost"
+                disabled={saving}
+              >
                 Cancel
               </Button>
             </DialogClose>
-            <Button type="submit" disabled={!!saving}>
+            <Button className="cursor-pointer" type="submit" disabled={saving}>
               {saving ? "Saving..." : "Save"}
             </Button>
           </DialogFooter>

@@ -3,7 +3,7 @@ import type { ApiResponse } from "@/types/api";
 import { api } from "@/lib/api";
 import type { AxiosError } from "axios";
 
-const getErrMsg = (e: unknown, fallback: string) => {
+export const getErrMsg = (e: unknown, fallback: string) => {
   const err = e as AxiosError<any>;
   return (err.response?.data?.message as string) ?? err.message ?? fallback;
 };

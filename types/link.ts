@@ -1,4 +1,4 @@
-export type createLinkPayload = {
+export type createLinkPayloadπl = {
   title: string;
   url: string;
 };

@@ -46,25 +46,33 @@ function getInitials(name?: string) {
 }
 
 function useSimpleTheme() {
-  const [theme, setTheme] = React.useState<"light" | "dark">(() => {
-    if (typeof window === "undefined") return "light";
-    const stored = localStorage.getItem("theme");
-    if (stored === "dark" || stored === "light") return stored;
-    const prefersDark = window.matchMedia(
-      "(prefers-color-scheme: dark)"
-    ).matches;
-    return prefersDark ? "dark" : "light";
-  });
+  const [theme, setTheme] = React.useState<"light" | "dark">("light");
+  const [mounted, setMounted] = React.useState(false);
+
+  React.useEffect(() => {
+    setMounted(true);
+    let initial: "light" | "dark" = "light";
+    try {
+      const stored = localStorage.getItem("theme");
+      if (stored === "dark" || stored === "light") initial = stored;
+      else if (window.matchMedia("(prefers-color-scheme: dark)").matches)
+        initial = "dark";
+    } catch {}
+    setTheme(initial);
+  }, []);
 
   React.useEffect(() => {
     const root = document.documentElement;
     if (theme === "dark") root.classList.add("dark");
     else root.classList.remove("dark");
-    localStorage.setItem("theme", theme);
+    try {
+      localStorage.setItem("theme", theme);
+    } catch {}
   }, [theme]);
 
   return {
     theme,
+    mounted,
     toggle: () => setTheme((t) => (t === "dark" ? "light" : "dark")),
   };
 }
@@ -88,8 +96,11 @@ export function Navbar({
   const publicUrl = profileHandle ? `${baseDomain}/${profileHandle}` : null;
   const defaultPreviewHref =
     previewHref ?? (profileHandle ? `/${profileHandle}` : "#");
-  const { theme, toggle } = useSimpleTheme();
+  const { theme, mounted, toggle } = useSimpleTheme();
   const avatarSrc = toPublicUrl(avatarUrl) || "";
+  const title = mounted
+    ? `Switch to ${theme === "dark" ? "light" : "dark"} mode`
+    : "Toggle theme";
 
   return (
     <header
@@ -162,13 +173,16 @@ export function Navbar({
               size="icon"
               className="h-9 w-9 rounded-full cursor-pointer"
               onClick={toggle}
-              title={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
+              title={title}
+              aria-label={title}
             >
-              {theme === "dark" ? (
-                <Sun className="h-4 w-4" />
-              ) : (
-                <Moon className="h-4 w-4" />
-              )}
+              {mounted ? (
+                theme === "dark" ? (
+                  <Sun className="h-4 w-4" />
+                ) : (
+                  <Moon className="h-4 w-4" />
+                )
+              ) : null}
             </Button>
 
             <DropdownMenu>

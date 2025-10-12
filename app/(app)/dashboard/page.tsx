@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Copy, Plus } from "lucide-react";
+import { Copy, Plus, MoreVertical, Pencil, Trash2 } from "lucide-react";
 import { FaInstagram, FaSpotify, FaTiktok, FaLinkedin } from "react-icons/fa6";
 import type { IconType } from "react-icons";
 import { toast } from "sonner";
@@ -9,12 +9,27 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
 
 import { EditProfileDialog } from "@/components/dialogs/EditProfileDialog";
 import { AddSocialDialog } from "@/components/dialogs/AddSocialDialog";
 import { AddLinkDialog } from "@/components/dialogs/AddlinkDialog";
+import { EditLinkDialog } from "@/components/dialogs/EditLinkDialog";
+import { ConfirmDialog } from "@/components/dialogs/ConfirmDialog";
 
 import { getMe, type User } from "@/services/user.services";
+import {
+  getLinks as fetchLinksSvc,
+  type LinkItem as LinkItemSvc,
+  updateLink as updateLinkSvc,
+  deleteLink as deleteLinkSvc,
+} from "@/services/link.services";
 import { toPublicUrl } from "@/lib/image-url";
 
 type SocialItem = { key: string; label: string; icon: IconType; url?: string };
@@ -59,10 +74,27 @@ export default function DashboardPage() {
   const [openAddSocial, setOpenAddSocial] = React.useState(false);
   const [openEdit, setOpenEdit] = React.useState(false);
 
+  const [openEditLink, setOpenEditLink] = React.useState(false);
+  const [editing, setEditing] = React.useState<LinkItem | null>(null);
+
+  const [openConfirmDelete, setOpenConfirmDelete] = React.useState(false);
+  const [deleting, setDeleting] = React.useState(false);
+  const [targetDelete, setTargetDelete] = React.useState<LinkItem | null>(null);
+
   const platforms = React.useMemo(
     () => Object.entries(ICONS).map(([key, v]) => ({ key, label: v.label })),
     []
   );
+
+  async function refetchLinks() {
+    const { items } = await fetchLinksSvc({ page: 1, limit: 10 });
+    const mapped: LinkItem[] = (items as LinkItemSvc[]).map((l) => ({
+      id: l.id,
+      title: l.title,
+      url: l.url,
+    }));
+    setLinks(mapped);
+  }
 
   React.useEffect(() => {
     let mounted = true;
@@ -70,20 +102,9 @@ export default function DashboardPage() {
       try {
         const user = await getMe();
         if (!mounted) return;
-
         setProfile(toProfile(user));
-
-        setLinks((prev) =>
-          prev.length
-            ? prev
-            : [
-                {
-                  id: crypto.randomUUID(),
-                  title: "My Instacard",
-                  url: `https://instacard.app/${user?.username ?? "me"}`,
-                },
-              ]
-        );
+        await refetchLinks();
+        if (!mounted) return;
         setSocials((prev) =>
           prev.length
             ? prev
@@ -95,11 +116,8 @@ export default function DashboardPage() {
       } catch (e: any) {
         if (!mounted) return;
         const status = e?.response?.status;
-        if (status === 401) {
-          toast.error("Not authenticated");
-        } else {
-          toast.error(e?.message || "Failed to load user");
-        }
+        if (status === 401) toast.error("Not authenticated");
+        else toast.error(e?.message || "Failed to load data");
       } finally {
         if (mounted) setLoading(false);
       }
@@ -113,6 +131,55 @@ export default function DashboardPage() {
     () => toPublicUrl(profile.avatarUrl) || "/avatar-placeholder.jpg",
     [profile.avatarUrl]
   );
+
+  function onEditLink(item: LinkItem) {
+    setEditing(item);
+    setOpenEditLink(true);
+  }
+
+  async function onSaveEditedLink(values: { title: string; url: string }) {
+    if (!editing) return;
+    const prev = links;
+    setLinks((p) =>
+      p.map((l) => (l.id === editing.id ? { ...l, ...values } : l))
+    );
+    try {
+      await updateLinkSvc(editing.id, values);
+      await refetchLinks();
+      toast.success("Link updated");
+    } catch (e: any) {
+      setLinks(prev);
+      toast.error(e?.message ?? "Failed to update link");
+      return;
+    } finally {
+      setOpenEditLink(false);
+      setEditing(null);
+    }
+  }
+
+  function askDelete(item: LinkItem) {
+    setTargetDelete(item);
+    setOpenConfirmDelete(true);
+  }
+
+  async function confirmDelete() {
+    if (!targetDelete) return;
+    const prev = links;
+    setDeleting(true);
+    setLinks((p) => p.filter((l) => l.id !== targetDelete.id));
+    try {
+      await deleteLinkSvc(targetDelete.id);
+      await refetchLinks();
+      toast.success("Link deleted");
+      setOpenConfirmDelete(false);
+      setTargetDelete(null);
+    } catch (e: any) {
+      setLinks(prev);
+      toast.error(e?.message ?? "Failed to delete link");
+    } finally {
+      setDeleting(false);
+    }
+  }
 
   return (
     <main className="min-h-[100dvh] bg-background text-foreground">
@@ -210,18 +277,51 @@ export default function DashboardPage() {
                             {l.url}
                           </p>
                         </div>
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          className="rounded-full cursor-pointer h-8 w-8"
-                          onClick={() => {
-                            navigator.clipboard.writeText(l.url);
-                            toast.success("Link copied");
-                          }}
-                          title="Copy link URL"
-                        >
-                          <Copy className="h-4 w-4" />
-                        </Button>
+
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            className="rounded-full cursor-pointer h-8 w-8"
+                            onClick={() => {
+                              navigator.clipboard.writeText(l.url);
+                              toast.success("Link copied");
+                            }}
+                            title="Copy link URL"
+                          >
+                            <Copy className="h-4 w-4" />
+                          </Button>
+
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button
+                                variant="outline"
+                                size="icon"
+                                className="rounded-full cursor-pointer h-8 w-8"
+                                title="More actions"
+                              >
+                                <MoreVertical className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-40">
+                              <DropdownMenuItem
+                                onClick={() => onEditLink(l)}
+                                className="gap-2 cursor-pointer"
+                              >
+                                <Pencil className="h-4 w-4" />
+                                Edit
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem
+                                onClick={() => askDelete(l)}
+                                className="gap-2 cursor-pointer"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                                Delete
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
                       </li>
                     ))}
                   </ul>
@@ -242,17 +342,9 @@ export default function DashboardPage() {
                 <AddLinkDialog
                   open={openAddLink}
                   onOpenChange={setOpenAddLink}
-                  onSubmit={(data) => {
-                    const title = String(data.get("title") || "").trim();
-                    let url = String(data.get("url") || "").trim();
-                    if (!title || !url) return;
-                    if (!/^https?:\/\//i.test(url)) url = `https://${url}`;
-                    setLinks((prev) => [
-                      { id: crypto.randomUUID(), title, url },
-                      ...prev,
-                    ]);
+                  onCreated={async () => {
+                    await refetchLinks();
                     toast.success("Link added");
-                    setOpenAddLink(false);
                   }}
                 />
 
@@ -304,6 +396,38 @@ export default function DashboardPage() {
           </aside>
         </div>
       </div>
+
+      <EditLinkDialog
+        open={openEditLink}
+        onOpenChange={(v) => {
+          setOpenEditLink(v);
+          if (!v) setEditing(null);
+        }}
+        id={editing?.id ?? null}
+        initial={
+          editing
+            ? { title: editing.title, url: editing.url }
+            : { title: "", url: "" }
+        }
+        onSuccess={async () => {
+          await refetchLinks();
+        }}
+      />
+
+      <ConfirmDialog
+        open={openConfirmDelete}
+        onOpenChange={(v) => {
+          setOpenConfirmDelete(v);
+          if (!v) setTargetDelete(null);
+        }}
+        title="Delete link?"
+        description={
+          targetDelete ? `This will remove "${targetDelete.title}".` : undefined
+        }
+        confirmText="Delete"
+        loading={deleting}
+        onConfirm={confirmDelete}
+      />
     </main>
   );
 }
@@ -354,7 +478,6 @@ function PhonePreview({
             </AvatarFallback>
           </Avatar>
         </div>
-
         <h3 className="mt-4 text-base font-semibold">{profile.name}</h3>
         <div className="mt-1 text-center text-[10px] leading-relaxed text-zinc-300 px-2">
           <p>
@@ -362,7 +485,6 @@ function PhonePreview({
           </p>
           <p>jumps over the lazy dog.</p>
         </div>
-
         <div className="mt-4 flex items-center gap-4 text-zinc-200">
           {socials.map((s, idx) => (
             <s.icon key={`${s.key}-${idx}`} className="h-4 w-4 opacity-90" />
