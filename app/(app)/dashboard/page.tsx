@@ -1,8 +1,22 @@
 "use client";
 
 import * as React from "react";
-import { Copy, Plus, MoreVertical, Pencil, Trash2 } from "lucide-react";
-import { FaInstagram, FaSpotify, FaTiktok, FaLinkedin } from "react-icons/fa6";
+import {
+  Copy,
+  MoreVertical,
+  Pencil,
+  Trash2,
+  Plus,
+  Link as LinkIcon,
+} from "lucide-react";
+import {
+  FaInstagram,
+  FaTiktok,
+  FaLinkedin,
+  FaYoutube,
+  FaGithub,
+  FaXTwitter,
+} from "react-icons/fa6";
 import type { IconType } from "react-icons";
 import { toast } from "sonner";
 
@@ -30,17 +44,27 @@ import {
   updateLink as updateLinkSvc,
   deleteLink as deleteLinkSvc,
 } from "@/services/link.services";
+import {
+  getSocials,
+  upsertSocial,
+  type SocialLink,
+} from "@/services/social.services";
 import { toPublicUrl } from "@/lib/image-url";
 
 type SocialItem = { key: string; label: string; icon: IconType; url?: string };
 type Profile = { name: string; bio: string; avatarUrl: string; handle: string };
 type LinkItem = { id: string; title: string; url: string };
 
-const ICONS: Record<string, { label: string; icon: IconType }> = {
+const ICONS: Record<
+  "instagram" | "tiktok" | "x" | "linkedin" | "youtube" | "github",
+  { label: string; icon: IconType }
+> = {
   instagram: { label: "Instagram", icon: FaInstagram },
-  spotify: { label: "Spotify", icon: FaSpotify },
   tiktok: { label: "TikTok", icon: FaTiktok },
+  x: { label: "X (Twitter)", icon: FaXTwitter },
   linkedin: { label: "LinkedIn", icon: FaLinkedin },
+  youtube: { label: "YouTube", icon: FaYoutube },
+  github: { label: "GitHub", icon: FaGithub },
 };
 
 const getInitials = (name: string) =>
@@ -58,8 +82,30 @@ const toProfile = (u: User | null | undefined): Profile => ({
   handle: u?.username || "username",
 });
 
+const getDomain = (url: string) => {
+  try {
+    const u = new URL(url);
+    return u.hostname.replace(/^www\./, "");
+  } catch {
+    return url;
+  }
+};
+
+function mapSocialRecords(recs: SocialLink[]): SocialItem[] {
+  return recs.map((r) => {
+    const meta = ICONS[r.platform as keyof typeof ICONS];
+    return {
+      key: r.platform,
+      label: meta?.label ?? r.platform,
+      icon: meta?.icon ?? ICONS.linkedin.icon,
+      url: r.url,
+    };
+  });
+}
+
 export default function DashboardPage() {
   const [loading, setLoading] = React.useState(true);
+
   const [profile, setProfile] = React.useState<Profile>({
     name: "Loading…",
     bio: "",
@@ -81,12 +127,7 @@ export default function DashboardPage() {
   const [deleting, setDeleting] = React.useState(false);
   const [targetDelete, setTargetDelete] = React.useState<LinkItem | null>(null);
 
-  const platforms = React.useMemo(
-    () => Object.entries(ICONS).map(([key, v]) => ({ key, label: v.label })),
-    []
-  );
-
-  async function refetchLinks() {
+  const refetchLinks = React.useCallback(async () => {
     const { items } = await fetchLinksSvc({ page: 1, limit: 10 });
     const mapped: LinkItem[] = (items as LinkItemSvc[]).map((l) => ({
       id: l.id,
@@ -94,7 +135,12 @@ export default function DashboardPage() {
       url: l.url,
     }));
     setLinks(mapped);
-  }
+  }, []);
+
+  const refetchSocials = React.useCallback(async () => {
+    const { data: recs } = await getSocials();
+    setSocials(mapSocialRecords(recs));
+  }, []);
 
   React.useEffect(() => {
     let mounted = true;
@@ -103,16 +149,9 @@ export default function DashboardPage() {
         const user = await getMe();
         if (!mounted) return;
         setProfile(toProfile(user));
-        await refetchLinks();
+
+        await Promise.all([refetchLinks(), refetchSocials()]);
         if (!mounted) return;
-        setSocials((prev) =>
-          prev.length
-            ? prev
-            : [
-                { key: "instagram", label: "Instagram", icon: FaInstagram },
-                { key: "tiktok", label: "TikTok", icon: FaTiktok },
-              ]
-        );
       } catch (e: any) {
         if (!mounted) return;
         const status = e?.response?.status;
@@ -125,19 +164,19 @@ export default function DashboardPage() {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [refetchLinks, refetchSocials]);
 
   const avatarSrc = React.useMemo(
     () => toPublicUrl(profile.avatarUrl) || "/avatar-placeholder.jpg",
     [profile.avatarUrl]
   );
 
-  function onEditLink(item: LinkItem) {
+  const onEditLink = (item: LinkItem) => {
     setEditing(item);
     setOpenEditLink(true);
-  }
+  };
 
-  async function onSaveEditedLink(values: { title: string; url: string }) {
+  const onSaveEditedLink = async (values: { title: string; url: string }) => {
     if (!editing) return;
     const prev = links;
     setLinks((p) =>
@@ -155,14 +194,14 @@ export default function DashboardPage() {
       setOpenEditLink(false);
       setEditing(null);
     }
-  }
+  };
 
-  function askDelete(item: LinkItem) {
+  const askDelete = (item: LinkItem) => {
     setTargetDelete(item);
     setOpenConfirmDelete(true);
-  }
+  };
 
-  async function confirmDelete() {
+  const confirmDelete = async () => {
     if (!targetDelete) return;
     const prev = links;
     setDeleting(true);
@@ -179,220 +218,209 @@ export default function DashboardPage() {
     } finally {
       setDeleting(false);
     }
-  }
+  };
 
   return (
-    <main className="min-h-[100dvh] bg-background text-foreground">
-      <div className="mx-auto w-full max-w-7xl px-6 sm:px-10 lg:px-16 py-6">
-        <div className="flex items-center justify-between">
-          <h1 className="text-xl font-semibold tracking-tight">Links</h1>
-          <div />
-        </div>
+    <main className="h-full bg-background text-foreground">
+      <div className="mx-auto h-full w-full max-w-7xl px-6 sm:px-10 lg:px-16 py-6">
+        <div className="grid h-full grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
+          <section className="relative flex h-full flex-col overflow-hidden rounded-3xl bg-background/20 p-6 md:p-8 backdrop-blur-xl">
+            <div className="mb-6 flex items-start justify-between gap-4">
+              <div className="flex min-w-0 items-start gap-5">
+                <Avatar className="h-20 w-20 ring-1 ring-border/50 bg-background/60">
+                  <AvatarImage src={avatarSrc} alt={profile.name} />
+                  <AvatarFallback className="text-base">
+                    {getInitials(profile.name)}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="min-w-0">
+                  <h1 className="text-xl font-semibold leading-none">
+                    {profile.name}
+                  </h1>
+                  <p className="mt-2 text-[15px] text-muted-foreground leading-relaxed">
+                    {profile.bio || "Add a short bio so people know you."}
+                  </p>
+                  <div className="mt-4 flex items-center gap-3">
+                    {socials.map((s, idx) => (
+                      <a
+                        key={`${s.key}-${idx}`}
+                        className="inline-flex h-10 w-10 items-center justify-center rounded-full ring-1 ring-border/50 bg-background/50 backdrop-blur transition hover:bg-accent/50 cursor-pointer"
+                        aria-label={s.label}
+                        title={s.url || s.label}
+                        href={s.url || "#"}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        <s.icon className="h-[18px] w-[18px] opacity-90" />
+                      </a>
+                    ))}
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="h-10 w-10 rounded-full cursor-pointer"
+                      onClick={() => setOpenAddSocial(true)}
+                      title="Add social"
+                    >
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              </div>
 
-        <div className="grid grid-cols-1 mt-6 lg:grid-cols-[minmax(0,1fr)_340px] gap-4">
-          <section className="rounded-3xl border bg-card/60 backdrop-blur-sm p-6 md:p-8 shadow-sm">
+              <div className="shrink-0">
+                <Button
+                  className="h-9 rounded-full px-4 cursor-pointer"
+                  onClick={() => setOpenEdit(true)}
+                >
+                  Edit Profile
+                </Button>
+              </div>
+            </div>
+
+            <Separator className="mb-4 opacity-60" />
+
+            <div className="mb-4 flex items-center justify-between">
+              <p className="text-sm text-muted-foreground">Your Links</p>
+              <Button
+                className="h-8 bg-primary rounded-full px-3 cursor-pointer"
+                onClick={() => setOpenAddLink(true)}
+              >
+                <Plus className="mr-2 h-4 w-4" />
+                Add Link
+              </Button>
+            </div>
+
             {loading ? (
               <EditorSkeleton />
-            ) : (
-              <>
-                <div className="flex items-start gap-5">
-                  <Avatar className="h-20 w-20 ring-1 ring-border">
-                    <AvatarImage src={avatarSrc} alt={profile.name} />
-                    <AvatarFallback className="text-base">
-                      {getInitials(profile.name)}
-                    </AvatarFallback>
-                  </Avatar>
-
-                  <div className="flex-1">
-                    <div className="flex flex-wrap items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <h2 className="text-xl font-semibold leading-none">
-                          {profile.name}
-                        </h2>
-                        <p className="mt-2 text-[15px] text-muted-foreground leading-relaxed">
-                          {profile.bio || "Add a short bio so people know you."}
-                        </p>
-                      </div>
-                      <Button
-                        variant="outline"
-                        className="rounded-full h-8 cursor-pointer px-4"
-                        onClick={() => setOpenEdit(true)}
-                      >
-                        Edit Profile
-                      </Button>
+            ) : links.length > 0 ? (
+              <ul className="space-y-3">
+                {links.map((l) => (
+                  <li
+                    key={l.id}
+                    className="group flex items-center justify-between rounded-2xl bg-background/40 px-4 py-3 border border-border/60 supports-[backdrop-filter]:bg-background/30 supports-[backdrop-filter]:backdrop-blur"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate font-medium">{l.title}</p>
+                      <p className="mt-1 truncate text-xs text-muted-foreground">
+                        {getDomain(l.url)}
+                      </p>
                     </div>
 
-                    <div className="mt-4 flex items-center gap-3">
-                      {socials.map((s, idx) => (
-                        <a
-                          key={`${s.key}-${idx}`}
-                          className="inline-flex h-10 w-10 items-center justify-center rounded-full border bg-background/70 ring-1 ring-border hover:bg-accent hover:ring-accent transition"
-                          aria-label={s.label}
-                          title={s.url || s.label}
-                          href={s.url || "#"}
-                          target="_blank"
-                          rel="noreferrer"
-                        >
-                          <s.icon className="h-[18px] w-[18px] opacity-90" />
-                        </a>
-                      ))}
-
+                    <div className="ml-3 flex items-center gap-2">
                       <Button
                         variant="outline"
                         size="icon"
-                        className="rounded-full cursor-pointer h-10 w-10"
-                        onClick={() => setOpenAddSocial(true)}
-                        title="Add social"
+                        className="h-8 w-8 rounded-full cursor-pointer"
+                        onClick={() => {
+                          navigator.clipboard.writeText(l.url);
+                          toast.success("Link copied");
+                        }}
+                        title="Copy link URL"
                       >
-                        <Plus className="h-4 w-4" />
+                        <Copy className="h-4 w-4" />
                       </Button>
-                    </div>
-                  </div>
-                </div>
 
-                <Separator className="my-8" />
-
-                <div className="mb-4 flex items-center justify-between">
-                  <p className="text-sm text-muted-foreground">Your Links</p>
-                  <Button
-                    variant="outline"
-                    className="rounded-full cursor-pointer h-8 px-3"
-                    onClick={() => setOpenAddLink(true)}
-                  >
-                    <Plus className="mr-2 h-4 w-4" />
-                    Add Link
-                  </Button>
-                </div>
-
-                {links.length > 0 ? (
-                  <ul className="space-y-3">
-                    {links.map((l) => (
-                      <li
-                        key={l.id}
-                        className="flex items-center justify-between rounded-xl border bg-background/70 px-4 py-3"
-                      >
-                        <div className="min-w-0">
-                          <p className="truncate font-medium">{l.title}</p>
-                          <p className="truncate text-sm text-muted-foreground">
-                            {l.url}
-                          </p>
-                        </div>
-
-                        <div className="flex items-center gap-2">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
                           <Button
                             variant="outline"
                             size="icon"
-                            className="rounded-full cursor-pointer h-8 w-8"
-                            onClick={() => {
-                              navigator.clipboard.writeText(l.url);
-                              toast.success("Link copied");
-                            }}
-                            title="Copy link URL"
+                            className="h-8 w-8 rounded-full cursor-pointer"
+                            title="More actions"
                           >
-                            <Copy className="h-4 w-4" />
+                            <MoreVertical className="h-4 w-4" />
                           </Button>
-
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button
-                                variant="outline"
-                                size="icon"
-                                className="rounded-full cursor-pointer h-8 w-8"
-                                title="More actions"
-                              >
-                                <MoreVertical className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="w-40">
-                              <DropdownMenuItem
-                                onClick={() => onEditLink(l)}
-                                className="gap-2 cursor-pointer"
-                              >
-                                <Pencil className="h-4 w-4" />
-                                Edit
-                              </DropdownMenuItem>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem
-                                onClick={() => askDelete(l)}
-                                className="gap-2 cursor-pointer"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                                Delete
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <div className="grid place-items-center text-center">
-                    <div className="h-16 w-16 rounded-full border grid place-items-center text-muted-foreground">
-                      *
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-44">
+                          <DropdownMenuItem
+                            onClick={() => onEditLink(l)}
+                            className="gap-2 cursor-pointer"
+                          >
+                            <Pencil className="h-4 w-4" />
+                            Edit
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            onClick={() => askDelete(l)}
+                            className="gap-2 text-destructive focus:text-destructive cursor-pointer"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                            Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
-                    <p className="mt-6 text-lg font-medium">
-                      Show the world who you are.
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      Add a link to get started.
-                    </p>
-                  </div>
-                )}
-
-                <AddLinkDialog
-                  open={openAddLink}
-                  onOpenChange={setOpenAddLink}
-                  onCreated={async () => {
-                    await refetchLinks();
-                    toast.success("Link added");
-                  }}
-                />
-
-                <AddSocialDialog
-                  open={openAddSocial}
-                  onOpenChange={setOpenAddSocial}
-                  platforms={platforms}
-                  onSubmit={(data) => {
-                    const platform = String(data.get("platform") || "");
-                    const url = String(data.get("socialUrl") || "").trim();
-                    if (!platform || !ICONS[platform]) return;
-                    const { label, icon } = ICONS[platform];
-                    setSocials((prev) => [
-                      { key: platform, label, icon, url },
-                      ...prev,
-                    ]);
-                    toast.success("Social added");
-                    setOpenAddSocial(false);
-                  }}
-                />
-
-                <EditProfileDialog
-                  open={openEdit}
-                  onOpenChange={setOpenEdit}
-                  initial={{
-                    avatarUrl: toPublicUrl(profile.avatarUrl) || "",
-                    name: profile.name,
-                    bio: profile.bio,
-                  }}
-                  onSuccess={(user) => {
-                    setProfile((p) => ({
-                      ...p,
-                      name: user.name ?? p.name,
-                      bio: user.bio ?? p.bio,
-                      avatarUrl:
-                        toPublicUrl(
-                          (user as any).avatar_url ?? (user as any).avatar
-                        ) || p.avatarUrl,
-                    }));
-                    toast.success("Profile updated");
-                  }}
-                />
-              </>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <div className="grid place-items-center py-10 text-center">
+                <div className="grid text-6xl h-16 w-16 place-items-center rounded-full bg-background/40 ring-1 ring-border/50">
+                  <LinkIcon />
+                </div>
+                <p className="mt-6 text-lg font-medium">
+                  Show the world who you are.
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  Add a link to get started.
+                </p>
+                <Button
+                  variant="outline"
+                  className="mt-4 rounded-full px-5 cursor-pointer"
+                  onClick={() => setOpenAddLink(true)}
+                >
+                  <Plus className="mr-2 h-4 w-4" />
+                  Add your first link
+                </Button>
+              </div>
             )}
+
+            <AddLinkDialog
+              open={openAddLink}
+              onOpenChange={setOpenAddLink}
+              onCreated={async () => {
+                await refetchLinks();
+                toast.success("Link added");
+              }}
+            />
+
+            <AddSocialDialog
+              open={openAddSocial}
+              onOpenChange={setOpenAddSocial}
+              onSave={async ({ platform, username }) => {
+                const resp = await upsertSocial({ platform, username });
+                await refetchSocials(); // sinkron dengan DB
+                toast.success(resp?.message ?? "Social saved");
+              }}
+            />
+
+            <EditProfileDialog
+              open={openEdit}
+              onOpenChange={setOpenEdit}
+              initial={{
+                avatarUrl: toPublicUrl(profile.avatarUrl) || "",
+                name: profile.name,
+                bio: profile.bio,
+              }}
+              onSuccess={(user) => {
+                setProfile((p) => ({
+                  ...p,
+                  name: user.name ?? p.name,
+                  bio: user.bio ?? p.bio,
+                  avatarUrl:
+                    toPublicUrl(
+                      (user as any).avatar_url ?? (user as any).avatar
+                    ) || p.avatarUrl,
+                }));
+                toast.success("Profile updated");
+              }}
+            />
           </section>
 
-          <aside className="hidden lg:block lg:sticky top-6 self-start">
-            <PhonePreview profile={profile} socials={socials} />
+          <aside className="hidden lg:block">
+            <div className="sticky top-[88px]">
+              <PhonePreview profile={profile} socials={socials} links={links} />
+            </div>
           </aside>
         </div>
       </div>
@@ -436,23 +464,23 @@ function EditorSkeleton() {
   return (
     <div className="animate-pulse">
       <div className="flex items-start gap-5">
-        <div className="h-20 w-20 rounded-full bg-muted" />
+        <div className="h-20 w-20 rounded-full bg-muted/50" />
         <div className="flex-1 space-y-3">
-          <div className="h-5 w-56 rounded bg-muted" />
-          <div className="h-4 w-full max-w-[480px] rounded bg-muted" />
+          <div className="h-5 w-56 rounded bg-muted/50" />
+          <div className="h-4 w-full max-w-[480px] rounded bg-muted/50" />
           <div className="mt-4 flex items-center gap-3">
-            <div className="h-10 w-10 rounded-full bg-muted" />
-            <div className="h-10 w-10 rounded-full bg-muted" />
-            <div className="h-10 w-10 rounded-full bg-muted" />
-            <div className="h-10 w-10 rounded-full bg-muted" />
+            <div className="h-10 w-10 rounded-full bg-muted/50" />
+            <div className="h-10 w-10 rounded-full bg-muted/50" />
+            <div className="h-10 w-10 rounded-full bg-muted/50" />
+            <div className="h-10 w-10 rounded-full bg-muted/50" />
           </div>
         </div>
       </div>
-      <Separator className="my-8" />
-      <div className="h-8 w-40 rounded-full bg-muted" />
+      <Separator className="my-8 opacity-60" />
+      <div className="h-8 w-40 rounded-full bg-muted/50" />
       <div className="mt-4 space-y-3">
-        <div className="h-14 rounded-xl bg-muted" />
-        <div className="h-14 rounded-xl bg-muted" />
+        <div className="h-14 rounded-2xl bg-muted/50" />
+        <div className="h-14 rounded-2xl bg-muted/50" />
       </div>
     </div>
   );
@@ -461,35 +489,69 @@ function EditorSkeleton() {
 function PhonePreview({
   profile,
   socials,
+  links,
 }: {
   profile: Profile;
   socials: SocialItem[];
+  links: LinkItem[];
 }) {
   const phoneAvatar =
     toPublicUrl(profile.avatarUrl) || "/avatar-placeholder.jpg";
+
   return (
-    <div className="relative mx-auto h-[520px] w-[320px] rounded-[28px] bg-black text-white shadow-xl ring-1 ring-zinc-800">
-      <div className="flex h-full flex-col items-center px-5 py-7">
-        <div className="h-16 w-16 overflow-hidden rounded-full ring-2 ring-zinc-700 bg-zinc-800 grid place-items-center">
-          <Avatar className="h-16 w-16">
+    <div className="relative mx-auto h-[560px] w-[330px] overflow-hidden rounded-[28px] bg-black text-white ring-1 ring-zinc-800">
+      <div className="h-full overflow-y-auto px-5 pt-10 pb-6 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+        <div className="flex flex-col items-center">
+          <Avatar className="h-16 w-16 ring-2 ring-zinc-700 bg-zinc-800">
             <AvatarImage src={phoneAvatar} alt={profile.name} />
             <AvatarFallback className="text-xs">
               {getInitials(profile.name)}
             </AvatarFallback>
           </Avatar>
-        </div>
-        <h3 className="mt-4 text-base font-semibold">{profile.name}</h3>
-        <div className="mt-1 text-center text-[10px] leading-relaxed text-zinc-300 px-2">
-          <p>
-            {profile.bio ? profile.bio.slice(0, 38) : "The quick brown fox"}
+          <h3 className="mt-3 text-[15px] font-semibold leading-none">
+            {profile.name}
+          </h3>
+          <p className="mt-2 max-w-[260px] text-center text-[11px] leading-relaxed text-zinc-300">
+            {profile.bio || "Add a short bio so people know you."}
           </p>
-          <p>jumps over the lazy dog.</p>
+          <div className="mt-3 flex flex-wrap items-center justify-center gap-3 text-zinc-200">
+            {socials.map((s, idx) => (
+              <span
+                key={`${s.key}-${idx}`}
+                className="inline-grid h-7 w-7 place-items-center rounded-full bg-white/5 ring-1 ring-white/10"
+                title={s.label}
+              >
+                <s.icon className="h-3.5 w-3.5 opacity-90" />
+              </span>
+            ))}
+          </div>
         </div>
-        <div className="mt-4 flex items-center gap-4 text-zinc-200">
-          {socials.map((s, idx) => (
-            <s.icon key={`${s.key}-${idx}`} className="h-4 w-4 opacity-90" />
+
+        <div className="mt-5 h-px w-full bg-white/10" />
+
+        <ul className="mt-5 grid gap-2.5">
+          {links.map((l) => (
+            <li key={l.id}>
+              <a
+                href={l.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                title={l.url}
+                className="block rounded-2xl bg-white/[0.06] px-4 py-3 ring-1 ring-white/10 transition hover:bg-white/[0.1] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40 cursor-pointer"
+                style={{ minHeight: 44 }}
+              >
+                <p className="truncate text-sm font-medium text-white leading-none">
+                  {l.title}
+                </p>
+                <p className="mt-1 truncate text-[11px] leading-normal text-zinc-300">
+                  {getDomain(l.url)}
+                </p>
+              </a>
+            </li>
           ))}
-        </div>
+        </ul>
+
+        <div className="h-4" />
       </div>
     </div>
   );
