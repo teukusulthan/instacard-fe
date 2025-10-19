@@ -15,6 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { updateMe, type User } from "@/services/user.services";
 import { useRouter } from "next/navigation";
+import { Avatar, AvatarImage, AvatarFallback } from "../ui/avatar";
 
 type Props = {
   open: boolean;
@@ -106,11 +107,12 @@ export function EditProfileDialog({
           <div className="flex flex-col items-center gap-4 sm:flex-row">
             <div className="shrink-0">
               <div className="h-20 w-20 overflow-hidden rounded-full ring-1 ring-border bg-muted">
-                <img
-                  src={preview || "/placeholder-avatar.png"}
-                  alt="Avatar preview"
-                  className="h-full w-full object-cover"
-                />
+                <Avatar className="h-full w-full">
+                  <AvatarImage src={preview || ""} alt="Avatar preview" />
+                  <AvatarFallback className="text-xs md:text-sm">
+                    No Avatar
+                  </AvatarFallback>
+                </Avatar>
               </div>
             </div>
 
@@ -125,7 +127,7 @@ export function EditProfileDialog({
                 onChange={handleFileChange}
               />
               <p className="text-xs text-muted-foreground">
-                Formats: JPG/PNG/WebP. Max 5MB.
+                Formats: JPG atau. Max 10MB.
               </p>
             </div>
           </div>

@@ -79,6 +79,8 @@ export async function restoreSocial(id: string) {
 }
 
 export async function deleteSocial(id: string) {
-  const res = await api.delete<ApiEnvelope<SocialLink>>(`/social/${id}`);
-  return res.data;
+  const { data } = await api.delete<ApiEnvelope<SocialLink>>(
+    `/social/${encodeURIComponent(id.trim())}`
+  );
+  return data;
 }

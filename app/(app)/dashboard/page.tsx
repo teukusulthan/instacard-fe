@@ -33,6 +33,7 @@ import {
 
 import { EditProfileDialog } from "@/components/dialogs/EditProfileDialog";
 import { AddSocialDialog } from "@/components/dialogs/AddSocialDialog";
+import { EditSocialDialog } from "@/components/dialogs/EditSocialDialog";
 import { AddLinkDialog } from "@/components/dialogs/AddlinkDialog";
 import { EditLinkDialog } from "@/components/dialogs/EditLinkDialog";
 import { ConfirmDialog } from "@/components/dialogs/ConfirmDialog";
@@ -47,11 +48,18 @@ import {
 import {
   getSocials,
   upsertSocial,
+  deleteSocial,
   type SocialLink,
 } from "@/services/social.services";
 import { toPublicUrl } from "@/lib/image-url";
 
-type SocialItem = { key: string; label: string; icon: IconType; url?: string };
+type SocialItem = {
+  id: string;
+  key: string;
+  label: string;
+  icon: IconType;
+  url?: string;
+};
 type Profile = { name: string; bio: string; avatarUrl: string; handle: string };
 type LinkItem = { id: string; title: string; url: string };
 
@@ -91,13 +99,53 @@ const getDomain = (url: string) => {
   }
 };
 
+function extractUsername(platform: string, url?: string): string | undefined {
+  if (!url) return undefined;
+  try {
+    const u = new URL(url);
+    const host = u.hostname.replace(/^www\./, "");
+    const path = u.pathname.replace(/\/+$/g, "");
+    if (platform === "instagram" && /instagram\.com$/.test(host)) {
+      const seg = path.split("/").filter(Boolean)[0];
+      return seg || undefined;
+    }
+    if (platform === "tiktok" && /tiktok\.com$/.test(host)) {
+      const seg = path.split("/").filter(Boolean)[0];
+      return seg?.startsWith("@") ? seg.slice(1) : seg || undefined;
+    }
+    if (platform === "x" && /(x\.com|twitter\.com)$/.test(host)) {
+      const seg = path.split("/").filter(Boolean)[0];
+      return seg || undefined;
+    }
+    if (platform === "linkedin" && /linkedin\.com$/.test(host)) {
+      const segs = path.split("/").filter(Boolean);
+      const idx = segs.indexOf("in");
+      if (idx >= 0 && segs[idx + 1]) return segs[idx + 1];
+      return undefined;
+    }
+    if (platform === "youtube" && /youtube\.com$/.test(host)) {
+      const seg = path.split("/").filter(Boolean)[0];
+      if (seg?.startsWith("@")) return seg.slice(1);
+      return undefined;
+    }
+    if (platform === "github" && /github\.com$/.test(host)) {
+      const seg = path.split("/").filter(Boolean)[0];
+      return seg || undefined;
+    }
+    return undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 function mapSocialRecords(recs: SocialLink[]): SocialItem[] {
   return recs.map((r) => {
     const meta = ICONS[r.platform as keyof typeof ICONS];
     return {
+      id: r.id,
       key: r.platform,
       label: meta?.label ?? r.platform,
-      icon: meta?.icon ?? ICONS.linkedin.icon,
+      icon: meta?.icon ?? FaLinkedin,
       url: r.url,
     };
   });
@@ -127,6 +175,13 @@ export default function DashboardPage() {
   const [deleting, setDeleting] = React.useState(false);
   const [targetDelete, setTargetDelete] = React.useState<LinkItem | null>(null);
 
+  const [openEditSocial, setOpenEditSocial] = React.useState(false);
+  const [selectedSocial, setSelectedSocial] = React.useState<{
+    id: string | null;
+    platform: string | null;
+    username?: string | null;
+  }>({ id: null, platform: null, username: null });
+
   const refetchLinks = React.useCallback(async () => {
     const { items } = await fetchLinksSvc({ page: 1, limit: 10 });
     const mapped: LinkItem[] = (items as LinkItemSvc[]).map((l) => ({
@@ -149,7 +204,6 @@ export default function DashboardPage() {
         const user = await getMe();
         if (!mounted) return;
         setProfile(toProfile(user));
-
         await Promise.all([refetchLinks(), refetchSocials()]);
         if (!mounted) return;
       } catch (e: any) {
@@ -220,6 +274,13 @@ export default function DashboardPage() {
     }
   };
 
+  const handleClickSocial = (s: SocialItem) => {
+    const platform = s.key;
+    const username = extractUsername(platform, s.url);
+    setSelectedSocial({ id: s.id, platform, username: username ?? null });
+    setOpenEditSocial(true);
+  };
+
   return (
     <main className="h-full bg-background text-foreground">
       <div className="mx-auto h-full w-full max-w-7xl px-6 sm:px-10 lg:px-16 py-6">
@@ -242,17 +303,16 @@ export default function DashboardPage() {
                   </p>
                   <div className="mt-4 flex items-center gap-3">
                     {socials.map((s, idx) => (
-                      <a
+                      <button
                         key={`${s.key}-${idx}`}
+                        type="button"
                         className="inline-flex h-10 w-10 items-center justify-center rounded-full ring-1 ring-border/50 bg-background/50 backdrop-blur transition hover:bg-accent/50 cursor-pointer"
-                        aria-label={s.label}
-                        title={s.url || s.label}
-                        href={s.url || "#"}
-                        target="_blank"
-                        rel="noreferrer"
+                        aria-label={`Edit ${s.label}`}
+                        title={`Edit ${s.label}`}
+                        onClick={() => handleClickSocial(s)}
                       >
                         <s.icon className="h-[18px] w-[18px] opacity-90" />
-                      </a>
+                      </button>
                     ))}
                     <Button
                       variant="outline"
@@ -389,8 +449,34 @@ export default function DashboardPage() {
               onOpenChange={setOpenAddSocial}
               onSave={async ({ platform, username }) => {
                 const resp = await upsertSocial({ platform, username });
-                await refetchSocials(); // sinkron dengan DB
+                await refetchSocials();
                 toast.success(resp?.message ?? "Social saved");
+              }}
+            />
+
+            <EditSocialDialog
+              open={openEditSocial}
+              onOpenChange={(v) => {
+                setOpenEditSocial(v);
+                if (!v)
+                  setSelectedSocial({
+                    id: null,
+                    platform: null,
+                    username: null,
+                  });
+              }}
+              platform={(selectedSocial.platform as any) ?? null}
+              initialUsername={selectedSocial.username ?? ""}
+              onSave={async ({ platform, username }) => {
+                const resp = await upsertSocial({ platform, username });
+                await refetchSocials();
+                toast.success(resp?.message ?? "Social updated");
+              }}
+              onDelete={async () => {
+                if (!selectedSocial.id) return;
+                await deleteSocial(selectedSocial.id);
+                await refetchSocials();
+                toast.success("Social deleted");
               }}
             />
 
