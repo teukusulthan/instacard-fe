@@ -8,6 +8,7 @@ import {
   Trash2,
   Plus,
   Link as LinkIcon,
+  RotateCcw,
 } from "lucide-react";
 import {
   FaInstagram,
@@ -30,6 +31,11 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
+import {
+  Popover,
+  PopoverTrigger,
+  PopoverContent,
+} from "@/components/ui/popover";
 
 import { EditProfileDialog } from "@/components/dialogs/EditProfileDialog";
 import { AddSocialDialog } from "@/components/dialogs/AddSocialDialog";
@@ -49,6 +55,7 @@ import {
   getSocials,
   upsertSocial,
   deleteSocial,
+  restoreSocial,
   type SocialLink,
 } from "@/services/social.services";
 import { toPublicUrl } from "@/lib/image-url";
@@ -59,7 +66,9 @@ type SocialItem = {
   label: string;
   icon: IconType;
   url?: string;
+  is_active: boolean;
 };
+
 type Profile = { name: string; bio: string; avatarUrl: string; handle: string };
 type LinkItem = { id: string; title: string; url: string };
 
@@ -138,49 +147,47 @@ function extractUsername(platform: string, url?: string): string | undefined {
   }
 }
 
-function mapSocialRecords(recs: SocialLink[]): SocialItem[] {
-  return recs.map((r) => {
-    const meta = ICONS[r.platform as keyof typeof ICONS];
+function mapSocialRecords(recs?: SocialLink[]): SocialItem[] {
+  return (recs ?? []).map((r) => {
+    const meta = ICONS[r.platform as keyof typeof ICONS] || ICONS.linkedin;
     return {
       id: r.id,
       key: r.platform,
-      label: meta?.label ?? r.platform,
-      icon: meta?.icon ?? FaLinkedin,
+      label: meta.label,
+      icon: meta.icon,
       url: r.url,
+      is_active: Boolean(r.is_active),
     };
   });
 }
 
 export default function DashboardPage() {
   const [loading, setLoading] = React.useState(true);
-
   const [profile, setProfile] = React.useState<Profile>({
     name: "Loading…",
     bio: "",
     avatarUrl: "/avatar-placeholder.jpg",
     handle: "…",
   });
-
   const [socials, setSocials] = React.useState<SocialItem[]>([]);
   const [links, setLinks] = React.useState<LinkItem[]>([]);
-
   const [openAddLink, setOpenAddLink] = React.useState(false);
   const [openAddSocial, setOpenAddSocial] = React.useState(false);
   const [openEdit, setOpenEdit] = React.useState(false);
-
   const [openEditLink, setOpenEditLink] = React.useState(false);
   const [editing, setEditing] = React.useState<LinkItem | null>(null);
-
   const [openConfirmDelete, setOpenConfirmDelete] = React.useState(false);
   const [deleting, setDeleting] = React.useState(false);
   const [targetDelete, setTargetDelete] = React.useState<LinkItem | null>(null);
-
   const [openEditSocial, setOpenEditSocial] = React.useState(false);
   const [selectedSocial, setSelectedSocial] = React.useState<{
     id: string | null;
     platform: string | null;
     username?: string | null;
   }>({ id: null, platform: null, username: null });
+  const [openSocialPopover, setOpenSocialPopover] = React.useState<
+    string | null
+  >(null);
 
   const refetchLinks = React.useCallback(async () => {
     const { items } = await fetchLinksSvc({ page: 1, limit: 10 });
@@ -193,8 +200,9 @@ export default function DashboardPage() {
   }, []);
 
   const refetchSocials = React.useCallback(async () => {
-    const { data: recs } = await getSocials();
-    setSocials(mapSocialRecords(recs));
+    const resp = await getSocials({ sort: "order", order: "asc" });
+    const list = Array.isArray(resp?.data) ? resp.data : [];
+    setSocials(mapSocialRecords(list as SocialLink[]));
   }, []);
 
   React.useEffect(() => {
@@ -274,11 +282,28 @@ export default function DashboardPage() {
     }
   };
 
-  const handleClickSocial = (s: SocialItem) => {
-    const platform = s.key;
-    const username = extractUsername(platform, s.url);
-    setSelectedSocial({ id: s.id, platform, username: username ?? null });
-    setOpenEditSocial(true);
+  const onRestoreSocial = async (s: SocialItem) => {
+    try {
+      await restoreSocial(s.id);
+      await refetchSocials();
+      toast.success("Social restored");
+    } catch (e: any) {
+      toast.error(e?.message ?? "Failed to restore");
+    } finally {
+      setOpenSocialPopover(null);
+    }
+  };
+
+  const onDeleteSocial = async (s: SocialItem) => {
+    try {
+      await deleteSocial(s.id);
+      await refetchSocials();
+      toast.success("Social deleted");
+    } catch (e: any) {
+      toast.error(e?.message ?? "Failed to delete");
+    } finally {
+      setOpenSocialPopover(null);
+    }
   };
 
   return (
@@ -303,16 +328,54 @@ export default function DashboardPage() {
                   </p>
                   <div className="mt-4 flex items-center gap-3">
                     {socials.map((s, idx) => (
-                      <button
+                      <Popover
                         key={`${s.key}-${idx}`}
-                        type="button"
-                        className="inline-flex h-10 w-10 items-center justify-center rounded-full ring-1 ring-border/50 bg-background/50 backdrop-blur transition hover:bg-accent/50 cursor-pointer"
-                        aria-label={`Edit ${s.label}`}
-                        title={`Edit ${s.label}`}
-                        onClick={() => handleClickSocial(s)}
+                        open={openSocialPopover === s.id}
+                        onOpenChange={(v) =>
+                          setOpenSocialPopover(v ? s.id : null)
+                        }
                       >
-                        <s.icon className="h-[18px] w-[18px] opacity-90" />
-                      </button>
+                        <PopoverTrigger asChild>
+                          <button
+                            type="button"
+                            className={`inline-flex h-10 w-10 items-center justify-center rounded-full ring-1 ring-border/50 bg-background/50 backdrop-blur transition cursor-pointer hover:bg-accent/50 ${
+                              s.is_active ? "" : "opacity-40 grayscale"
+                            }`}
+                            aria-label={`${s.label} actions`}
+                            title={`${s.label} actions`}
+                          >
+                            <s.icon className="h-[18px] w-[18px] opacity-90" />
+                          </button>
+                        </PopoverTrigger>
+                        <PopoverContent
+                          align="center"
+                          side="bottom"
+                          sideOffset={6}
+                          className="w-40 p-2"
+                        >
+                          <div className="grid gap-1.5">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="justify-start gap-2"
+                              onClick={() => onRestoreSocial(s)}
+                              disabled={s.is_active}
+                            >
+                              <RotateCcw className="h-4 w-4" />
+                              Restore
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="justify-start gap-2 text-destructive hover:text-destructive"
+                              onClick={() => onDeleteSocial(s)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                              Delete
+                            </Button>
+                          </div>
+                        </PopoverContent>
+                      </Popover>
                     ))}
                     <Button
                       variant="outline"
@@ -604,7 +667,11 @@ function PhonePreview({
             {socials.map((s, idx) => (
               <span
                 key={`${s.key}-${idx}`}
-                className="inline-grid h-7 w-7 place-items-center rounded-full bg-white/5 ring-1 ring-white/10"
+                className={`inline-grid h-7 w-7 place-items-center rounded-full ring-1 ${
+                  s.is_active
+                    ? "bg-white/5 ring-white/10"
+                    : "bg-white/5 ring-white/10 opacity-40 grayscale"
+                }`}
                 title={s.label}
               >
                 <s.icon className="h-3.5 w-3.5 opacity-90" />

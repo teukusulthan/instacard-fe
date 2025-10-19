@@ -49,7 +49,7 @@ export default function DashboardLayout({
           </Button>
         }
       />
-      <main id="main-content" className="flex-1 px-10">
+      <main id="main-content" className="flex-1 md:px-10">
         <div>{children}</div>
       </main>
     </div>

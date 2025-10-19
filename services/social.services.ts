@@ -1,6 +1,5 @@
 import { api } from "@/lib/api";
 
-/* Types */
 export type SocialPlatform =
   | "instagram"
   | "tiktok"
@@ -38,22 +37,50 @@ export type ApiEnvelope<T> = {
 };
 
 export type GetSocialsParams = {
-  page?: number;
-  limit?: number;
-  sort?: "created" | "order";
+  sort?: "order" | "created_at";
   order?: "asc" | "desc";
 };
 
+function normalizeInboundPlatform(list: any[]): SocialLink[] {
+  return (list ?? []).map((item) => {
+    const platform =
+      item?.platform === "twitter"
+        ? ("x" as SocialPlatform)
+        : (item?.platform as SocialPlatform);
+    return { ...item, platform } as SocialLink;
+  });
+}
+
+function normalizeOutboundPlatform(p: SocialPlatform | string): string {
+  return p === "x" ? "twitter" : p;
+}
+
 export async function getSocials(params: GetSocialsParams = {}) {
   const qs = new URLSearchParams();
-  if (params.page) qs.set("page", String(params.page));
-  if (params.limit) qs.set("limit", String(params.limit));
   if (params.sort) qs.set("sort", params.sort);
   if (params.order) qs.set("order", params.order);
 
-  const url = `/social${qs.toString() ? `?${qs.toString()}` : ""}`;
+  const url = `/social/all${qs.toString() ? `?${qs.toString()}` : ""}`;
   const res = await api.get<ApiEnvelope<SocialLink[]>>(url);
-  return res.data;
+  const data = Array.isArray(res.data?.data) ? res.data.data : [];
+  return {
+    ...res.data,
+    data: normalizeInboundPlatform(data),
+  };
+}
+
+export async function getActiveSocials(params: GetSocialsParams = {}) {
+  const qs = new URLSearchParams();
+  if (params.sort) qs.set("sort", params.sort);
+  if (params.order) qs.set("order", params.order);
+
+  const url = `/social/active${qs.toString() ? `?${qs.toString()}` : ""}`;
+  const res = await api.get<ApiEnvelope<SocialLink[]>>(url);
+  const data = Array.isArray(res.data?.data) ? res.data.data : [];
+  return {
+    ...res.data,
+    data: normalizeInboundPlatform(data),
+  };
 }
 
 export type UpsertSocialInput = {
@@ -62,25 +89,41 @@ export type UpsertSocialInput = {
 };
 
 export async function upsertSocial(input: UpsertSocialInput) {
-  const res = await api.put<ApiEnvelope<SocialLink>>(`/social`, input);
-  return res.data;
+  const payload = {
+    ...input,
+    platform: normalizeOutboundPlatform(input.platform),
+  };
+  const res = await api.put<ApiEnvelope<SocialLink>>(`/social`, payload);
+  const normalized = res.data?.data
+    ? normalizeInboundPlatform([res.data.data])[0]
+    : res.data?.data;
+  return { ...res.data, data: normalized as SocialLink };
 }
 
 export async function updateSocialOrder(id: string, order_index: number) {
   const res = await api.patch<ApiEnvelope<SocialLink>>(`/social/${id}/order`, {
     order_index,
   });
-  return res.data;
+  const normalized = res.data?.data
+    ? normalizeInboundPlatform([res.data.data])[0]
+    : res.data?.data;
+  return { ...res.data, data: normalized as SocialLink };
 }
 
 export async function restoreSocial(id: string) {
   const res = await api.patch<ApiEnvelope<SocialLink>>(`/social/${id}/restore`);
-  return res.data;
+  const normalized = res.data?.data
+    ? normalizeInboundPlatform([res.data.data])[0]
+    : res.data?.data;
+  return { ...res.data, data: normalized as SocialLink };
 }
 
 export async function deleteSocial(id: string) {
   const { data } = await api.delete<ApiEnvelope<SocialLink>>(
     `/social/${encodeURIComponent(id.trim())}`
   );
-  return data;
+  const normalized = data?.data
+    ? normalizeInboundPlatform([data.data])[0]
+    : data?.data;
+  return { ...data, data: normalized as SocialLink };
 }

@@ -110,7 +110,7 @@ export function EditSocialDialog({
               onClick={handleDelete}
               disabled={deleting || loading}
             >
-              {deleting ? "Deleting..." : "Delete"}
+              {deleting ? "Deactivatingπ..." : "Deactive"}
             </Button>
           ) : (
             <div />

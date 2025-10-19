@@ -55,3 +55,70 @@ export async function updateMe(payload: UpdateMePayload): Promise<User> {
   });
   return unwrap<User>(res.data);
 }
+
+export type PublicLink = {
+  id: string;
+  title: string;
+  url: string;
+  description?: string | null;
+  order?: number;
+  is_active?: boolean;
+};
+
+export type PublicSocial = {
+  platform:
+    | "instagram"
+    | "tiktok"
+    | "x"
+    | "linkedin"
+    | "youtube"
+    | "github"
+    | string;
+  url: string;
+  username?: string;
+};
+
+export type PublicProfile = User & {
+  theme?: string | null;
+  socials?: PublicSocial[];
+  links: PublicLink[];
+};
+
+export async function getPublicProfile(
+  username: string
+): Promise<PublicProfile | null> {
+  try {
+    const res = await api.get(`/user/u/${encodeURIComponent(username)}`, {
+      headers: { Accept: "application/json" },
+    });
+
+    const ct = String(res.headers?.["content-type"] || "");
+    if (!ct.includes("application/json")) {
+      const raw =
+        typeof res.data === "string"
+          ? res.data.slice(0, 160)
+          : JSON.stringify(res.data ?? "").slice(0, 160);
+      throw new Error(`Expected JSON but got "${ct}". Preview: ${raw}`);
+    }
+
+    const data = unwrap<PublicProfile>(res.data);
+    if (!data || typeof data !== "object")
+      throw new Error("Invalid JSON shape for public profile");
+    (data as any).links = Array.isArray((data as any).links)
+      ? (data as any).links
+      : [];
+    return data;
+  } catch (e: any) {
+    if (e?.response?.status === 404) return null;
+    const ct: string = e?.response?.headers?.["content-type"] ?? "";
+    if (ct && !ct.includes("application/json")) {
+      const raw = e?.response?.data;
+      const preview =
+        typeof raw === "string"
+          ? raw.slice(0, 160)
+          : JSON.stringify(raw ?? "").slice(0, 160);
+      throw new Error(`Expected JSON but got "${ct}". Preview: ${preview}`);
+    }
+    throw e;
+  }
+}
