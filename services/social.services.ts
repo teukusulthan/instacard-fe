@@ -111,7 +111,7 @@ export async function updateSocialOrder(id: string, order_index: number) {
 }
 
 export async function restoreSocial(id: string) {
-  const res = await api.patch<ApiEnvelope<SocialLink>>(`/social/${id}/restore`);
+  const res = await api.put<ApiEnvelope<SocialLink>>(`/social/${id}`);
   const normalized = res.data?.data
     ? normalizeInboundPlatform([res.data.data])[0]
     : res.data?.data;

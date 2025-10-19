@@ -283,11 +283,18 @@ export default function DashboardPage() {
   };
 
   const onRestoreSocial = async (s: SocialItem) => {
+    setSocials((prev) =>
+      prev.map((x) => (x.id === s.id ? { ...x, is_active: true } : x))
+    );
+
     try {
       await restoreSocial(s.id);
       await refetchSocials();
       toast.success("Social restored");
     } catch (e: any) {
+      setSocials((prev) =>
+        prev.map((x) => (x.id === s.id ? { ...x, is_active: false } : x))
+      );
       toast.error(e?.message ?? "Failed to restore");
     } finally {
       setOpenSocialPopover(null);
@@ -327,56 +334,75 @@ export default function DashboardPage() {
                     {profile.bio || "Add a short bio so people know you."}
                   </p>
                   <div className="mt-4 flex items-center gap-3">
-                    {socials.map((s, idx) => (
-                      <Popover
-                        key={`${s.key}-${idx}`}
-                        open={openSocialPopover === s.id}
-                        onOpenChange={(v) =>
-                          setOpenSocialPopover(v ? s.id : null)
-                        }
-                      >
-                        <PopoverTrigger asChild>
-                          <button
-                            type="button"
-                            className={`inline-flex h-10 w-10 items-center justify-center rounded-full ring-1 ring-border/50 bg-background/50 backdrop-blur transition cursor-pointer hover:bg-accent/50 ${
-                              s.is_active ? "" : "opacity-40 grayscale"
-                            }`}
-                            aria-label={`${s.label} actions`}
-                            title={`${s.label} actions`}
-                          >
-                            <s.icon className="h-[18px] w-[18px] opacity-90" />
-                          </button>
-                        </PopoverTrigger>
-                        <PopoverContent
-                          align="center"
-                          side="bottom"
-                          sideOffset={6}
-                          className="w-40 p-2"
+                    {socials.map((s, idx) =>
+                      s.is_active ? (
+                        <button
+                          key={`${s.key}-${idx}`}
+                          type="button"
+                          className="inline-flex h-10 w-10 items-center justify-center rounded-full ring-1 ring-border/50 bg-background/50 backdrop-blur transition cursor-pointer hover:bg-accent/50"
+                          aria-label={`Edit ${s.label}`}
+                          title={`Edit ${s.label}`}
+                          onClick={() => {
+                            const platform = s.key;
+                            const username = extractUsername(platform, s.url);
+                            setSelectedSocial({
+                              id: s.id,
+                              platform,
+                              username: username ?? null,
+                            });
+                            setOpenEditSocial(true);
+                          }}
                         >
-                          <div className="grid gap-1.5">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="justify-start gap-2"
-                              onClick={() => onRestoreSocial(s)}
-                              disabled={s.is_active}
+                          <s.icon className="h-[18px] w-[18px] opacity-90" />
+                        </button>
+                      ) : (
+                        <Popover
+                          key={`${s.key}-${idx}`}
+                          open={openSocialPopover === s.id}
+                          onOpenChange={(v) =>
+                            setOpenSocialPopover(v ? s.id : null)
+                          }
+                        >
+                          <PopoverTrigger asChild>
+                            <button
+                              type="button"
+                              className="inline-flex h-10 w-10 items-center justify-center rounded-full ring-1 ring-border/50 bg-background/50 backdrop-blur transition cursor-pointer hover:bg-accent/50 opacity-40 grayscale"
+                              aria-label={`${s.label} actions`}
+                              title={`${s.label} actions`}
                             >
-                              <RotateCcw className="h-4 w-4" />
-                              Restore
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="justify-start gap-2 text-destructive hover:text-destructive"
-                              onClick={() => onDeleteSocial(s)}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                              Delete
-                            </Button>
-                          </div>
-                        </PopoverContent>
-                      </Popover>
-                    ))}
+                              <s.icon className="h-[18px] w-[18px] opacity-90" />
+                            </button>
+                          </PopoverTrigger>
+                          <PopoverContent
+                            align="center"
+                            side="bottom"
+                            sideOffset={6}
+                            className="w-40 p-2"
+                          >
+                            <div className="grid gap-1.5">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="justify-start gap-2"
+                                onClick={() => onRestoreSocial(s)}
+                              >
+                                <RotateCcw className="h-4 w-4" />
+                                Restore
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="justify-start gap-2 text-destructive hover:text-destructive"
+                                onClick={() => onDeleteSocial(s)}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                                Delete
+                              </Button>
+                            </div>
+                          </PopoverContent>
+                        </Popover>
+                      )
+                    )}
                     <Button
                       variant="outline"
                       size="icon"
