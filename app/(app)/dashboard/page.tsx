@@ -672,6 +672,7 @@ function PhonePreview({
 }) {
   const phoneAvatar =
     toPublicUrl(profile.avatarUrl) || "/avatar-placeholder.jpg";
+  const activeSocials = socials.filter((s) => s.is_active);
 
   return (
     <div className="relative mx-auto h-[560px] w-[330px] overflow-hidden rounded-[28px] bg-black text-white ring-1 ring-zinc-800">
@@ -690,14 +691,10 @@ function PhonePreview({
             {profile.bio || "Add a short bio so people know you."}
           </p>
           <div className="mt-3 flex flex-wrap items-center justify-center gap-3 text-zinc-200">
-            {socials.map((s, idx) => (
+            {activeSocials.map((s, idx) => (
               <span
                 key={`${s.key}-${idx}`}
-                className={`inline-grid h-7 w-7 place-items-center rounded-full ring-1 ${
-                  s.is_active
-                    ? "bg-white/5 ring-white/10"
-                    : "bg-white/5 ring-white/10 opacity-40 grayscale"
-                }`}
+                className="inline-grid h-7 w-7 place-items-center rounded-full ring-1 bg-white/5 ring-white/10"
                 title={s.label}
               >
                 <s.icon className="h-3.5 w-3.5 opacity-90" />

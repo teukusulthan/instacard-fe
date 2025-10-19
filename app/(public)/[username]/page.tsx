@@ -11,14 +11,17 @@ import {
   FaGithub,
   FaXTwitter,
 } from "react-icons/fa6";
+import type { IconType } from "react-icons";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { getPublicProfile, type PublicProfile } from "@/services/user.services";
+import {
+  getActiveSocials,
+  type SocialLink,
+  type SocialPlatform,
+} from "@/services/social.services";
 
-const platformIcon: Record<
-  string,
-  React.ComponentType<{ className?: string }>
-> = {
+const platformIcon: Record<SocialPlatform, IconType> = {
   instagram: FaInstagram,
   tiktok: FaTiktok,
   x: FaXTwitter,
@@ -32,6 +35,7 @@ function initials(name?: string | null) {
   const p = name.trim().split(/\s+/).slice(0, 2);
   return p.map((s) => s[0]?.toUpperCase() ?? "").join("") || "U";
 }
+
 function normalizeUrl(u: string) {
   try {
     return new URL(u).toString();
@@ -39,6 +43,7 @@ function normalizeUrl(u: string) {
     return u.startsWith("http") ? u : `https://${u}`;
   }
 }
+
 function domain(u: string) {
   try {
     return new URL(u).hostname.replace(/^www\./, "");
@@ -78,26 +83,43 @@ function Theming({
 
 export default function PublicProfilePage() {
   const router = useRouter();
-  const { username: raw } = useParams<{ username: string }>();
+  const params = useParams();
+  const raw =
+    typeof (params as any)?.username === "string"
+      ? (params as any).username
+      : Array.isArray((params as any)?.username)
+      ? (params as any).username[0]
+      : "";
   const username = decodeURIComponent(raw ?? "");
   const [data, setData] = React.useState<PublicProfile | null | "loading">(
     "loading"
   );
+  const [socials, setSocials] = React.useState<SocialLink[]>([]);
   const [error, setError] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     let ok = true;
     setData("loading");
     setError(null);
-    getPublicProfile(username)
-      .then((res) => {
+    Promise.all([
+      getPublicProfile(username),
+      getActiveSocials({ sort: "order", order: "asc" }),
+    ])
+      .then(([profile, actives]) => {
         if (!ok) return;
-        setData(res ?? null);
+        setData(profile ?? null);
+        const list = Array.isArray(actives?.data) ? actives.data : [];
+        setSocials(
+          list
+            .filter((s) => s && s.url && s.is_active)
+            .sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0))
+        );
       })
       .catch((e: any) => {
         if (!ok) return;
         setError(e?.message || "Failed to load profile");
         setData(null);
+        setSocials([]);
       });
     return () => {
       ok = false;
@@ -132,14 +154,12 @@ export default function PublicProfilePage() {
   }
 
   const avatar = data.avatar || "/avatar-placeholder.jpg";
-  const socials = (data.socials ?? []).filter((s) => !!s.url);
   const links = (data.links ?? [])
     .filter((l) => l.is_active !== false)
     .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
 
   return (
     <Theming theme={data.theme}>
-      {/* Header */}
       <header className="px-6 pt-16 pb-8">
         <div className="mx-auto max-w-2xl text-center">
           <Avatar className="h-20 w-20 mx-auto ring-2 ring-zinc-800 bg-zinc-800">
@@ -159,25 +179,19 @@ export default function PublicProfilePage() {
           ) : null}
           {socials.length > 0 && (
             <div className="mt-4 flex flex-wrap items-center justify-center gap-3 text-zinc-200">
-              {socials.map((s, i) => {
-                const Icon = platformIcon[s.platform?.toLowerCase?.() || ""];
+              {socials.map((s) => {
+                const Icon = platformIcon[s.platform];
                 const href = normalizeUrl(s.url);
                 return (
                   <Link
-                    key={`${s.platform}-${i}`}
+                    key={s.id}
                     href={href}
                     target="_blank"
                     rel="noopener noreferrer"
                     aria-label={s.platform}
                     className="inline-grid h-8 w-8 place-items-center rounded-full bg-white/5 ring-1 ring-white/10 hover:bg-white/10"
                   >
-                    {Icon ? (
-                      <Icon className="h-4 w-4 opacity-90" />
-                    ) : (
-                      <span className="text-[10px]">
-                        {(s.platform || "?")[0]?.toUpperCase()}
-                      </span>
-                    )}
+                    <Icon className="h-4 w-4 opacity-90" />
                   </Link>
                 );
               })}
@@ -186,7 +200,6 @@ export default function PublicProfilePage() {
         </div>
       </header>
 
-      {/* Links */}
       <main className="px-6 pb-16">
         <ul className="mx-auto grid max-w-lg gap-3">
           {links.map((l) => (
@@ -210,7 +223,6 @@ export default function PublicProfilePage() {
           ))}
         </ul>
 
-        {/* Footer */}
         <div className="mt-10 text-center">
           <div className="mx-auto h-px max-w-lg bg-white/10" />
           <p className="mt-4 text-xs text-zinc-500">
