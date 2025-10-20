@@ -108,7 +108,11 @@ export function EditProfileDialog({
             <div className="shrink-0">
               <div className="h-20 w-20 overflow-hidden rounded-full ring-1 ring-border bg-muted">
                 <Avatar className="h-full w-full">
-                  <AvatarImage src={preview || ""} alt="Avatar preview" />
+                  <AvatarImage
+                    className="object-cover"
+                    src={preview || ""}
+                    alt="Avatar preview"
+                  />
                   <AvatarFallback className="text-xs md:text-sm">
                     No Avatar
                   </AvatarFallback>

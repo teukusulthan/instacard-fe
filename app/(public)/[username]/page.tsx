@@ -20,6 +20,7 @@ import {
   type SocialLink,
   type SocialPlatform,
 } from "@/services/social.services";
+import { toPublicUrl } from "@/lib/image-url";
 
 const platformIcon: Record<SocialPlatform, IconType> = {
   instagram: FaInstagram,
@@ -153,7 +154,10 @@ export default function PublicProfilePage() {
     );
   }
 
-  const avatar = data.avatar || "/avatar-placeholder.jpg";
+  const avatarSrc =
+    toPublicUrl((data as any).avatar_url ?? (data as any).avatar ?? "") ||
+    "/avatar-placeholder.jpg";
+
   const links = (data.links ?? [])
     .filter((l) => l.is_active !== false)
     .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
@@ -163,7 +167,11 @@ export default function PublicProfilePage() {
       <header className="px-6 pt-16 pb-8">
         <div className="mx-auto max-w-2xl text-center">
           <Avatar className="h-20 w-20 mx-auto ring-2 ring-zinc-800 bg-zinc-800">
-            <AvatarImage src={avatar} alt={data.name ?? data.username} />
+            <AvatarImage
+              className="object-cover w-full h-full"
+              src={avatarSrc}
+              alt={data.name ?? data.username}
+            />
             <AvatarFallback className="text-sm">
               {initials(data.name)}
             </AvatarFallback>

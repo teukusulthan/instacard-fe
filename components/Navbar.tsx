@@ -15,22 +15,22 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { toPublicUrl } from "@/lib/image-url";
+import { EditProfileDialog } from "@/components/dialogs/EditProfileDialog";
+import { getMe, type User } from "@/services/user.services";
 
 export type NavbarProps = {
   brand?: string;
   brandHref?: string;
   profileHandle?: string;
-  userName?: string;
-  avatarUrl?: string;
   baseDomain?: string;
   previewHref?: string;
   previewNewTab?: boolean;
-  onEditProfile?: () => void;
   onLogout?: () => void;
   withBorder?: boolean;
   translucent?: boolean;
   rightActions?: React.ReactNode;
   showUserNameNearBrand?: boolean;
+  onProfileUpdated?: (user: any) => void;
 };
 
 function getInitials(name?: string) {
@@ -81,26 +81,58 @@ export function Navbar({
   brand = "Instacard",
   brandHref = "",
   profileHandle,
-  userName,
-  avatarUrl,
   baseDomain = "instacard.app",
   previewHref,
   previewNewTab = true,
-  onEditProfile,
   onLogout,
   withBorder = true,
   translucent = true,
   rightActions,
   showUserNameNearBrand = false,
+  onProfileUpdated,
 }: NavbarProps) {
   const publicUrl = profileHandle ? `${baseDomain}/${profileHandle}` : null;
   const defaultPreviewHref =
     previewHref ?? (profileHandle ? `/${profileHandle}` : "#");
   const { theme, mounted, toggle } = useSimpleTheme();
-  const avatarSrc = toPublicUrl(avatarUrl) || "";
+
+  const [openEdit, setOpenEdit] = React.useState(false);
+  const [profile, setProfile] = React.useState<{
+    name: string;
+    bio: string;
+    avatarUrl: string;
+  }>({ name: "User", bio: "", avatarUrl: "" });
+
+  React.useEffect(() => {
+    let ok = true;
+    (async () => {
+      try {
+        const u: User = await getMe();
+        if (!ok) return;
+        const name = (u?.name?.trim() || u?.username?.trim() || "User").slice(
+          0,
+          80
+        );
+        const bio = (u?.bio ?? "") || "";
+        const avatarUrl =
+          toPublicUrl((u as any)?.avatar_url ?? (u as any)?.avatar ?? "") || "";
+        setProfile({ name, bio, avatarUrl });
+      } catch {}
+    })();
+    return () => {
+      ok = false;
+    };
+  }, []);
+
+  const avatarSrc = toPublicUrl(profile.avatarUrl) || "";
   const title = mounted
     ? `Switch to ${theme === "dark" ? "light" : "dark"} mode`
     : "Toggle theme";
+
+  const editKey = React.useMemo(
+    () => [profile.name, profile.bio, avatarSrc].join("|"),
+    [profile.name, profile.bio, avatarSrc]
+  );
 
   return (
     <header
@@ -120,9 +152,9 @@ export function Navbar({
               <span className="text-2xl font-bold tracking-tight">
                 Insta<span className="text-primary">Card</span>
               </span>
-              {showUserNameNearBrand && userName ? (
+              {showUserNameNearBrand && profile.name ? (
                 <span className="ml-2 hidden sm:inline text-sm text-muted-foreground">
-                  — {userName}
+                  — {profile.name}
                 </span>
               ) : null}
             </Link>
@@ -191,23 +223,32 @@ export function Navbar({
                   className="outline-none rounded-full focus-visible:ring-2 focus-visible:ring-ring"
                   aria-label="User menu"
                 >
-                  <Avatar className="h-9 w-9 ring-1 cursor-pointer ring-border">
-                    <AvatarImage src={avatarSrc} alt={userName || "User"} />
+                  <Avatar className="h-9 w-9 aspect-square shrink-0 rounded-full overflow-hidden ring-1 cursor-pointer ring-border">
+                    <AvatarImage
+                      className="h-full w-full object-cover"
+                      src={avatarSrc}
+                      alt={profile.name || "User"}
+                      style={{ objectFit: "cover" }}
+                    />
                     <AvatarFallback className="text-[11px] font-medium">
-                      {getInitials(userName)}
+                      {getInitials(profile.name)}
                     </AvatarFallback>
                   </Avatar>
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-44">
-                <DropdownMenuItem onClick={() => onEditProfile?.()}>
-                  <Pencil /> Edit profile
+                <DropdownMenuItem
+                  className="gap-2 cursor-pointer"
+                  onClick={() => setOpenEdit(true)}
+                >
+                  <Pencil className="h-4 w-4" />
+                  Edit profile
                 </DropdownMenuItem>
                 <DropdownMenuItem
-                  className="text-destructive focus:text-destructive"
+                  className="text-destructive focus:text-destructive gap-2 cursor-pointer"
                   onClick={() => onLogout?.()}
                 >
-                  <LogOut className="mr-2 h-4 w-4" />
+                  <LogOut className="h-4 w-4" />
                   Logout
                 </DropdownMenuItem>
               </DropdownMenuContent>
@@ -215,6 +256,28 @@ export function Navbar({
           </div>
         </div>
       </div>
+
+      <EditProfileDialog
+        key={editKey}
+        open={openEdit}
+        onOpenChange={setOpenEdit}
+        initial={{
+          avatarUrl: avatarSrc,
+          name: profile.name,
+          bio: profile.bio,
+        }}
+        onSuccess={(user) => {
+          setProfile((p) => ({
+            name: user.name ?? p.name,
+            bio: user.bio ?? p.bio,
+            avatarUrl:
+              toPublicUrl((user as any).avatar_url ?? (user as any).avatar) ??
+              p.avatarUrl,
+          }));
+          toast.success("Profile updated");
+          onProfileUpdated?.(user);
+        }}
+      />
     </header>
   );
 }

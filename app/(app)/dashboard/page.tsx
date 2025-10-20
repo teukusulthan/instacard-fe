@@ -320,12 +320,18 @@ export default function DashboardPage() {
           <section className="relative flex h-full flex-col overflow-hidden rounded-3xl bg-background/20 p-6 md:p-8 backdrop-blur-xl">
             <div className="mb-6 flex items-start justify-between gap-4">
               <div className="flex min-w-0 items-start gap-5">
-                <Avatar className="h-20 w-20 ring-1 ring-border/50 bg-background/60">
-                  <AvatarImage src={avatarSrc} alt={profile.name} />
-                  <AvatarFallback className="text-base">
+                <Avatar className="h-20 w-20 aspect-square shrink-0 mx-auto rounded-full overflow-hidden ring-2 ring-zinc-800 bg-zinc-800">
+                  <AvatarImage
+                    src={avatarSrc}
+                    alt={profile.name}
+                    className="h-full w-fulπl object-cover"
+                    style={{ objectFit: "cover" }}
+                  />
+                  <AvatarFallback className="text-sm">
                     {getInitials(profile.name)}
                   </AvatarFallback>
                 </Avatar>
+
                 <div className="min-w-0">
                   <h1 className="text-xl font-semibold leading-none">
                     {profile.name}
@@ -679,7 +685,11 @@ function PhonePreview({
       <div className="h-full overflow-y-auto px-5 pt-10 pb-6 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
         <div className="flex flex-col items-center">
           <Avatar className="h-16 w-16 ring-2 ring-zinc-700 bg-zinc-800">
-            <AvatarImage src={phoneAvatar} alt={profile.name} />
+            <AvatarImage
+              className="object-cover"
+              src={phoneAvatar}
+              alt={profile.name}
+            />
             <AvatarFallback className="text-xs">
               {getInitials(profile.name)}
             </AvatarFallback>
