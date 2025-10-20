@@ -1,5 +1,6 @@
 "use client";
 
+import * as React from "react";
 import Link from "next/link";
 import {
   ArrowRight,
@@ -9,7 +10,10 @@ import {
   ShieldCheck,
   Zap,
   CheckCircle2,
-  Star,
+  Heart,
+  Sun,
+  Moon,
+  QrCode,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -21,47 +25,172 @@ import {
   CardContent,
   CardFooter,
 } from "@/components/ui/card";
+import Image from "next/image";
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { Separator } from "@/components/ui/separator";
+import {
+  FaInstagram,
+  FaTiktok,
+  FaLinkedin,
+  FaYoutube,
+  FaGithub,
+  FaXTwitter,
+} from "react-icons/fa6";
+
+type SocialPlatform =
+  | "instagram"
+  | "tiktok"
+  | "x"
+  | "linkedin"
+  | "youtube"
+  | "github";
+
+const DUMMY_PROFILE = {
+  name: "Instacard",
+  handle: "@instacard",
+  location: "Jakarta",
+  bio: "A link-in-bio built for conversion—not just a list of links.",
+  avatarUrl: "",
+};
+
+const DUMMY_SOCIALS: {
+  id: string;
+  platform: SocialPlatform;
+  username: string;
+  url: string;
+  is_active: boolean;
+}[] = [
+  {
+    id: "1",
+    platform: "instagram",
+    username: "instacard.app",
+    url: "#",
+    is_active: true,
+  },
+  { id: "2", platform: "x", username: "instacard", url: "#", is_active: true },
+  {
+    id: "3",
+    platform: "linkedin",
+    username: "instacard",
+    url: "#",
+    is_active: true,
+  },
+  {
+    id: "4",
+    platform: "youtube",
+    username: "instacard",
+    url: "#",
+    is_active: false,
+  },
+  {
+    id: "5",
+    platform: "github",
+    username: "instacard",
+    url: "#",
+    is_active: true,
+  },
+  {
+    id: "6",
+    platform: "tiktok",
+    username: "instacard",
+    url: "#",
+    is_active: false,
+  },
+];
+
+const DUMMY_LINKS = [
+  { id: "l1", title: "Start Your Instacard", url: "#" },
+  { id: "l2", title: "Browse Templates", url: "#" },
+  { id: "l3", title: "Pricing & Plans", url: "#" },
+];
+
+const platformIcon: Record<
+  SocialPlatform,
+  React.ComponentType<{ className?: string }>
+> = {
+  instagram: FaInstagram,
+  tiktok: FaTiktok,
+  linkedin: FaLinkedin,
+  youtube: FaYoutube,
+  github: FaGithub,
+  x: FaXTwitter,
+};
+
+function useThemeToggle() {
+  const [theme, setTheme] = React.useState<"light" | "dark">("light");
+
+  React.useEffect(() => {
+    const stored = (typeof window !== "undefined" &&
+      localStorage.getItem("theme")) as "light" | "dark" | null;
+    const prefersDark =
+      typeof window !== "undefined" &&
+      window.matchMedia &&
+      window.matchMedia("(prefers-color-scheme: dark)").matches;
+
+    const initial = stored ?? (prefersDark ? "dark" : "light");
+    setTheme(initial);
+    if (initial === "dark") {
+      document.documentElement.classList.add("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+    }
+  }, []);
+
+  const toggle = React.useCallback(() => {
+    setTheme((prev) => {
+      const next = prev === "dark" ? "light" : "dark";
+      if (next === "dark") {
+        document.documentElement.classList.add("dark");
+      } else {
+        document.documentElement.classList.remove("dark");
+      }
+      localStorage.setItem("theme", next);
+      return next;
+    });
+  }, []);
+
+  return { theme, toggle };
+}
 
 export default function LandingPage() {
-  // Content sources (easy to maintain)
-  const socialProof = ["Creator", "Coach", "Agency", "Designer", "Developer"];
+  const { theme, toggle } = useThemeToggle();
 
   const features = [
     {
       icon: <LinkIcon className="h-5 w-5" />,
       title: "Beautiful link blocks",
-      desc: "Buttons, cards, and grids styled with shadcn/ui and your amethyst haze accent.",
+      desc: "Modern cards for links, social icons, CTAs, products, and more.",
     },
     {
-      icon: <LineChart className="h-5 w-5" />,
-      title: "Actionable analytics",
-      desc: "See clicks by link, device, and country with privacy‑friendly tracking.",
+      icon: <QrCode className="h-5 w-5" />,
+      title: "Smart QR sharing",
+      desc: "Generate a QR for your page so people can open your links with one scan.",
     },
     {
       icon: <ShieldCheck className="h-5 w-5" />,
-      title: "Privacy‑first",
-      desc: "Own your data. Export at any time. No invasive tracking.",
+      title: "Privacy-first",
+      desc: "Your data is yours. We eill never sell your profile.",
     },
     {
       icon: <Zap className="h-5 w-5" />,
-      title: "Blazing fast",
-      desc: "Optimized Next.js + Tailwind. Lighthouse‑friendly out of the box.",
+      title: "High Compability",
+      desc: "Built for all devices . SEO-friendly Lighthouse scores.",
     },
     {
       icon: <Sparkles className="h-5 w-5" />,
       title: "Themes & branding",
-      desc: "Tune typography, radii, and accents with tweakcn in minutes.",
+      desc: "Tune typography and accent colors. to make your links more interesting.",
     },
     {
       icon: <CheckCircle2 className="h-5 w-5" />,
-      title: "One‑click setup",
-      desc: "Sign in and publish your page in under 60 seconds.",
+      title: "One-minute setup",
+      desc: "Sign in, add links, publish. Perfect for your social bios.",
     },
   ];
 
@@ -69,30 +198,32 @@ export default function LandingPage() {
     {
       step: 1,
       title: "Create your profile",
-      desc: "Add avatar, bio, and choose the amethyst haze theme.",
+      desc: "Add an avatar, name, bio, and pick a theme that fits.",
     },
     {
       step: 2,
-      title: "Drop your links",
+      title: "Add links & socials",
       desc: "Paste URLs or usernames. Reorder with drag & drop.",
     },
     {
       step: 3,
       title: "Share everywhere",
-      desc: "Use your unique link on Instagram, TikTok, YouTube, and more.",
+      desc: "Use it in your Instagram, TikTok, YouTube, and X bios—or via QR.",
     },
   ];
 
+  const profile = DUMMY_PROFILE;
+  const socials = DUMMY_SOCIALS.filter((s) => s.is_active);
+  const links = DUMMY_LINKS;
+
   return (
     <main className="bg-background text-foreground">
-      {/* Navbar */}
       <header className="sticky top-0 z-40 w-full border-b backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6 md:px-10 lg:px-16">
           <Link href="#" className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary/15 ring-1 ring-primary/20">
-              <Sparkles className="h-4 w-4 text-primary" />
-            </div>
-            <span className="font-semibold tracking-tight">InstaCard</span>
+            <span className="text-xl font-semibold tracking-tight">
+              Insta<span className="text-primary">Card</span>
+            </span>
           </Link>
           <nav className="hidden items-center gap-6 text-sm md:flex">
             <Link
@@ -107,50 +238,53 @@ export default function LandingPage() {
             >
               How it works
             </Link>
-            <Link
-              href="#faq"
-              className="text-muted-foreground transition hover:text-foreground"
-            >
-              FAQ
-            </Link>
           </nav>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              aria-label="Toggle theme"
+              onClick={toggle}
+              className="rounded-full"
+            >
+              {theme === "dark" ? (
+                <Sun className="h-5 w-5" />
+              ) : (
+                <Moon className="h-5 w-5" />
+              )}
+            </Button>
             <Button asChild variant="ghost" className="hidden md:inline-flex">
               <Link href="/login">Sign in</Link>
             </Button>
             <Button asChild className="rounded-xl">
-              <Link href="/signup" className="inline-flex items-center gap-2">
-                Get started <ArrowRight className="h-4 w-4" />
+              <Link href="/register" className="inline-flex items-center gap-2">
+                Try free <ArrowRight className="h-4 w-4" />
               </Link>
             </Button>
           </div>
         </div>
       </header>
 
-      {/* Hero */}
-      <section className="px-6 md:px-10 lg:px-16 py-16 md:py-24">
+      <section className="px-6 py-16 md:px-10 md:py-2 lg:px-16">
         <div className="mx-auto grid w-full max-w-6xl items-center gap-10 md:grid-cols-2">
           <div>
-            <Badge
-              variant="secondary"
-              className="mb-4 inline-flex items-center gap-2 rounded-full border bg-background/70 backdrop-blur"
-            >
-              <Star className="h-3.5 w-3.5 text-primary" /> New: Theme “Amethyst
-              Haze”
-            </Badge>
-            <h1 className="text-balance text-4xl font-extrabold tracking-tight md:text-6xl">
-              Link‑in‑bio that actually{" "}
-              <span className="text-primary">converts</span>.
+            <h1 className="text-balance pt-16 text-4xl font-extrabold tracking-tight md:text-6xl">
+              A link-in-bio that actually{" "}
+              <span className="text-primary md:mb-12">converts</span>.
             </h1>
-            <p className="mt-4 max-w-xl text-pretty text-muted-foreground md:text-lg">
-              Build a beautiful, fast profile hub for all your links. Designed
-              with shadcn/ui and the “tweakcn – amethyst haze” palette so your
-              brand looks premium from day one.
+            <p className="mt-4 max-w-xl md:mb-20 text-pretty text-muted-foreground md:text-lg">
+              Build a clean, fast profile hub that’s easy to maintain. Highlight
+              your key links, socials, and clear CTAs so visitors become
+              customers.
             </p>
             <div className="mt-6 flex flex-wrap items-center gap-3">
               <Button asChild size="lg" className="rounded-xl">
-                <Link href="/signup" className="inline-flex items-center gap-2">
-                  Create your InstaCard <ArrowRight className="h-4 w-4" />
+                <Link
+                  href="/register"
+                  className="inline-flex items-center gap-2"
+                >
+                  Create your Instacard <ArrowRight className="h-4 w-4" />
                 </Link>
               </Button>
               <Button
@@ -164,63 +298,99 @@ export default function LandingPage() {
             </div>
             <div className="mt-6 flex items-center gap-4 text-xs text-muted-foreground">
               <span className="inline-flex items-center gap-1.5">
-                <ShieldCheck className="h-4 w-4" /> Privacy‑first
+                <ShieldCheck className="h-4 w-4" /> Privacy-first
               </span>
               <span className="inline-flex items-center gap-1.5">
-                <Zap className="h-4 w-4" /> Quick setup
+                <Zap className="h-4 w-4" /> Lightning-quick setup
               </span>
               <span className="inline-flex items-center gap-1.5">
-                <LineChart className="h-4 w-4" /> Analytics built‑in
+                <Heart className="h-4 w-4" /> Thoughtful, elegant UI
               </span>
             </div>
           </div>
 
-          {/* Phone Preview Mock */}
           <div className="mx-auto w-full max-w-sm">
-            <div className="mx-auto w-[21rem] rounded-[2rem] border bg-card p-4 shadow-lg">
-              <div className="mx-auto h-[40rem] overflow-hidden rounded-[1.5rem] border bg-background">
-                <div className="sticky top-0 z-10 flex items-center justify-between border-b bg-background/90 p-4 backdrop-blur">
-                  <div className="inline-flex items-center gap-2">
-                    <div className="h-8 w-8 rounded-full bg-primary/20" />
-                    <div>
-                      <p className="text-sm font-semibold">@yourhandle</p>
-                      <p className="text-xs text-muted-foreground">
-                        Creator • Jakarta
-                      </p>
-                    </div>
+            <div className="relative mx-auto mt-20 h-[35rem] w-[20.625rem] overflow-hidden rounded-[28px] bg-card dark:bg-background text-card-foreground ring-1 ring-border">
+              <div className="sticky top-0 z-10 flex items-center justify-between border-b border-border bg-background/80 p-4 backdrop-blur">
+                <div className="inline-flex items-center gap-2">
+                  <Avatar className="h-8 w-8 ring-1 ring-border bg-muted">
+                    <AvatarImage
+                      src={profile.avatarUrl || ""}
+                      alt={profile.name}
+                    />
+                    <AvatarFallback className="text-[10px]">IC</AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <p className="text-sm font-semibold">{profile.handle}</p>
+                    <p className="text-xs text-muted-foreground">
+                      Creator • {profile.location}
+                    </p>
                   </div>
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    className="rounded-full"
-                  >
-                    Follow
-                  </Button>
+                </div>
+                <Button size="sm" variant="secondary" className="rounded-full">
+                  Follow
+                </Button>
+              </div>
+
+              <div className="h-full overflow-y-auto px-4 pb-6 pt-4 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+                <div className="flex flex-col items-center text-center">
+                  <Avatar className="h-16 w-16 ring-2 ring-border bg-muted">
+                    <AvatarImage
+                      src={profile.avatarUrl || ""}
+                      alt={profile.name}
+                    />
+                    <AvatarFallback>IC</AvatarFallback>
+                  </Avatar>
+                  <div className="mt-2">
+                    <p className="text-sm font-semibold">{profile.name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {profile.bio}
+                    </p>
+                  </div>
                 </div>
 
-                <div className="space-y-3 p-4">
-                  {Array.from({ length: 5 }).map((_, i) => (
+                <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+                  {socials.map((s) => {
+                    const Icon = platformIcon[s.platform];
+                    return (
+                      <Button
+                        key={s.id}
+                        size="sm"
+                        variant="outline"
+                        className="rounded-full"
+                        asChild
+                      >
+                        <a href={s.url}>
+                          <Icon className="h-3.5 w-3.5" />
+                        </a>
+                      </Button>
+                    );
+                  })}
+                </div>
+
+                <Separator className="my-4" />
+
+                <div className="space-y-3">
+                  {links.map((l) => (
                     <Button
-                      key={i}
+                      key={l.id}
                       variant="outline"
                       className="w-full rounded-xl py-6"
+                      asChild
                     >
-                      <LinkIcon className="mr-2 h-4 w-4" /> Sample Link {i + 1}
+                      <a href={l.url} className="inline-flex items-center">
+                        <LinkIcon className="mr-2 h-4 w-4" />
+                        {l.title}
+                      </a>
                     </Button>
                   ))}
-                  <Card className="rounded-xl border-dashed">
-                    <CardContent className="flex items-center justify-between gap-4 p-4">
-                      <div className="text-sm">
-                        <p className="font-medium">Boost with Pro</p>
-                        <p className="text-muted-foreground">
-                          Custom domain • Advanced analytics
-                        </p>
-                      </div>
-                      <Button size="sm" className="rounded-full">
-                        Upgrade
-                      </Button>
-                    </CardContent>
-                  </Card>
+                </div>
+
+                <div className="pt-3 text-center text-[10px] text-muted-foreground">
+                  Powered by{" "}
+                  <span className="text-secondary text-md">
+                    Insta<span className="text-primary">Card</span>
+                  </span>
                 </div>
               </div>
             </div>
@@ -228,30 +398,15 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Social Proof */}
-      <section className="px-6 md:px-10 lg:px-16 pt-0 pb-16 md:pb-24">
-        <div className="mx-auto grid w-full max-w-6xl grid-cols-2 items-center gap-6 text-sm text-muted-foreground md:grid-cols-5">
-          {socialProof.map((label) => (
-            <div
-              key={label}
-              className="flex items-center justify-center rounded-xl border bg-card/40 p-3"
-            >
-              <span className="tracking-wide">{label}s trust InstaCard</span>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* Features */}
-      <section id="features" className="px-6 md:px-10 lg:px-16 py-16 md:py-24">
+      <section id="features" className="px-6 py-16 md:px-10 md:py-24 lg:px-16">
         <div className="mx-auto w-full max-w-6xl">
           <div className="mb-10 text-center">
             <h2 className="text-3xl font-bold tracking-tight md:text-4xl">
               Everything you need to grow
             </h2>
             <p className="mx-auto mt-3 max-w-2xl text-muted-foreground">
-              Thoughtful defaults, elegant UI, and the essentials to turn clicks
-              into customers.
+              Mature defaults, elegant UI, and the essentials to turn clicks
+              into meaningful action.
             </p>
           </div>
 
@@ -271,8 +426,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* How it works */}
-      <section id="how" className="px-6 md:px-10 lg:px-16 py-16 md:py-24">
+      <section id="how" className="px-6 py-6 md:px-10 lg:px-16">
         <div className="mx-auto w-full max-w-6xl">
           <div className="mb-10 text-center">
             <h2 className="text-3xl font-bold tracking-tight md:text-4xl">
@@ -299,25 +453,28 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Testimonial */}
-      <section className="px-6 md:px-10 lg:px-16 py-16 md:py-24">
+      <section className="px-6 py-16 md:px-10 md:py-24 lg:px-16">
         <div className="mx-auto w-full max-w-6xl">
           <div className="grid items-center gap-8 md:grid-cols-[1.2fr_0.8fr]">
             <div>
               <h3 className="text-2xl font-semibold tracking-tight md:text-3xl">
-                “We switched to InstaCard and CTR jumped 28% in two weeks.”
+                “After using Instacard, our CTR jumped 28% in two weeks.”
               </h3>
               <p className="mt-3 max-w-2xl text-muted-foreground">
-                Clean design, clear hierarchy, faster loads — the small things
-                compound. Crafted with shadcn/ui so it feels native to your
-                brand.
+                Clean design, clear hierarchy, and fast performance. that is the
+                small things that make a real impact on sales.
               </p>
               <div className="mt-6 inline-flex items-center gap-3">
-                <div className="h-10 w-10 rounded-full bg-primary/20" />
-                <div>
-                  <p className="text-sm font-medium">Aisyah Ramadhani</p>
-                  <p className="text-xs text-muted-foreground">
-                    Content Lead, HaloStudio
+                <Avatar className="h-16 w-16 ring-2 ring-border bg-muted">
+                  <AvatarImage src="/ricat.jpg" alt={profile.name} />
+                  <AvatarFallback className="text-muted-foreground font-medium">
+                    IC
+                  </AvatarFallback>
+                </Avatar>
+                <div className="pl-2">
+                  <p className="text-md font-medium">Alvin Rikardo</p>
+                  <p className="text-sm text-muted-foreground">
+                    Content Lead, WGN Studio
                   </p>
                 </div>
               </div>
@@ -325,9 +482,7 @@ export default function LandingPage() {
             <Card className="rounded-2xl">
               <CardHeader>
                 <CardTitle>Why creators love it</CardTitle>
-                <CardDescription>
-                  Top highlights from real users
-                </CardDescription>
+                <CardDescription>Highlights from real users</CardDescription>
               </CardHeader>
               <CardContent className="grid gap-3 text-sm">
                 <div className="inline-flex items-center gap-2 text-muted-foreground">
@@ -336,16 +491,16 @@ export default function LandingPage() {
                 </div>
                 <div className="inline-flex items-center gap-2 text-muted-foreground">
                   <CheckCircle2 className="h-4 w-4 text-primary" /> Easy to
-                  maintain
+                  maintain and update
                 </div>
                 <div className="inline-flex items-center gap-2 text-muted-foreground">
-                  <CheckCircle2 className="h-4 w-4 text-primary" /> Genuine
-                  performance gains
+                  <CheckCircle2 className="h-4 w-4 text-primary" /> Performance
+                  gains you can feel
                 </div>
               </CardContent>
               <CardFooter>
                 <Button asChild className="w-full rounded-xl">
-                  <Link href="/signup">Start free</Link>
+                  <Link href="/register">Start free</Link>
                 </Button>
               </CardFooter>
             </Card>
@@ -353,59 +508,17 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* FAQ */}
-      <section id="faq" className="px-6 md:px-10 lg:px-16 py-16 md:py-24">
-        <div className="mx-auto w-full max-w-6xl">
-          <div className="mb-8 text-center">
-            <h2 className="text-3xl font-bold tracking-tight md:text-4xl">
-              Frequently asked questions
-            </h2>
-            <p className="mx-auto mt-3 max-w-2xl text-muted-foreground">
-              Can’t find what you’re looking for? Reach us anytime.
-            </p>
-          </div>
-          <div className="mx-auto max-w-3xl">
-            <Accordion type="single" collapsible className="w-full">
-              <AccordionItem value="item-1">
-                <AccordionTrigger>Is there a free plan?</AccordionTrigger>
-                <AccordionContent>
-                  Yes. You can create and publish your InstaCard for free.
-                  Upgrade anytime for advanced analytics and custom domains.
-                </AccordionContent>
-              </AccordionItem>
-              <AccordionItem value="item-2">
-                <AccordionTrigger>Can I use my own domain?</AccordionTrigger>
-                <AccordionContent>
-                  Absolutely. Connect your custom domain on the Pro plan. We
-                  guide you through DNS so it’s painless.
-                </AccordionContent>
-              </AccordionItem>
-              <AccordionItem value="item-3">
-                <AccordionTrigger>Does it support dark mode?</AccordionTrigger>
-                <AccordionContent>
-                  Yes. We follow your system preference and you can force light
-                  or dark in settings. The amethyst haze theme looks great in
-                  both.
-                </AccordionContent>
-              </AccordionItem>
-            </Accordion>
-          </div>
-        </div>
-      </section>
-
-      {/* CTA */}
-      <section className="px-6 md:px-10 lg:px-16 pb-24">
+      <section className="px-6 pb-24 md:px-10 lg:px-16">
         <div className="mx-auto flex w-full max-w-6xl flex-col items-center justify-center gap-4 rounded-2xl border bg-gradient-to-b from-primary/5 to-transparent p-10 text-center">
           <h3 className="text-2xl font-semibold tracking-tight md:text-3xl">
-            Ready to turn clicks into customers?
+            Ready to turn visitors into customers?
           </h3>
           <p className="max-w-2xl text-muted-foreground">
-            Sign up in seconds, choose the amethyst haze theme, and ship a
-            world‑class link‑in‑bio today.
+            Sign up in seconds, and publish a world-class link-in-bio today.
           </p>
           <div className="flex flex-wrap items-center gap-3">
             <Button asChild size="lg" className="rounded-xl">
-              <Link href="/signup">Create your InstaCard</Link>
+              <Link href="/register">Create your Instacard</Link>
             </Button>
             <Button asChild size="lg" variant="outline" className="rounded-xl">
               <Link href="#features">Explore features</Link>
@@ -414,13 +527,12 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Footer */}
       <footer className="border-t">
         <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 px-6 py-8 md:flex-row md:px-10 lg:px-16">
-          <p className="text-sm text-muted-foreground">
+          <p className="text-xs text-muted-foreground">
             © {new Date().getFullYear()} InstaCard. All rights reserved.
           </p>
-          <div className="flex items-center gap-6 text-sm text-muted-foreground">
+          <div className="flex items-center gap-6 text-xs text-muted-foreground">
             <Link href="#">Privacy</Link>
             <Link href="#">Terms</Link>
             <Link href="#">Contact</Link>

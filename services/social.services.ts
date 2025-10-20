@@ -118,9 +118,19 @@ export async function restoreSocial(id: string) {
   return { ...res.data, data: normalized as SocialLink };
 }
 
-export async function deleteSocial(id: string) {
+export async function SoftDeleteSocial(id: string) {
   const { data } = await api.delete<ApiEnvelope<SocialLink>>(
-    `/social/${encodeURIComponent(id.trim())}`
+    `/social/soft/${encodeURIComponent(id.trim())}`
+  );
+  const normalized = data?.data
+    ? normalizeInboundPlatform([data.data])[0]
+    : data?.data;
+  return { ...data, data: normalized as SocialLink };
+}
+
+export async function HardDeleteSocial(id: string) {
+  const { data } = await api.delete<ApiEnvelope<SocialLink>>(
+    `/social/hard/${encodeURIComponent(id.trim())}`
   );
   const normalized = data?.data
     ? normalizeInboundPlatform([data.data])[0]

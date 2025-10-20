@@ -3,6 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
+import { createPortal } from "react-dom";
 import {
   FaInstagram,
   FaTiktok,
@@ -21,6 +22,7 @@ import {
   type SocialPlatform,
 } from "@/services/social.services";
 import { toPublicUrl } from "@/lib/image-url";
+import { QrForCurrentPage } from "@/components/QrForCurrentPage";
 
 const platformIcon: Record<SocialPlatform, IconType> = {
   instagram: FaInstagram,
@@ -197,7 +199,7 @@ export default function PublicProfilePage() {
                     target="_blank"
                     rel="noopener noreferrer"
                     aria-label={s.platform}
-                    className="inline-grid h-8 w-8 place-items-center rounded-full bg-white/5 ring-1 ring-white/10 hover:bg-white/10"
+                    className="inline-grid h-8 w-8 place-items-center rounded-full bg-neutral-950 ring-1 ring-white/10 hover:bg-neutral-900"
                   >
                     <Icon className="h-4 w-4 opacity-90" />
                   </Link>
@@ -217,7 +219,7 @@ export default function PublicProfilePage() {
                 target="_blank"
                 rel="noopener noreferrer"
                 title={l.url}
-                className="block rounded-2xl bg-white/[0.06] px-5 py-4 ring-1 ring-white/10 transition hover:bg-white/[0.1] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
+                className="block mx-2 rounded-2xl bg-neutral-950 px-5 py-4 ring-1 ring-white/10 transition hover:bg-neutral-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
                 style={{ minHeight: 52 }}
               >
                 <p className="truncate text-base font-medium text-white leading-none">
@@ -233,11 +235,30 @@ export default function PublicProfilePage() {
 
         <div className="mt-10 text-center">
           <div className="mx-auto h-px max-w-lg bg-white/10" />
-          <p className="mt-4 text-xs text-zinc-500">
-            Powered by Instacard • @{data.username}
+          <p className="mt-4 text-sm pt-10 text-zinc-500">
+            Powered by{" "}
+            <span className="text-secondary">
+              Insta<span className="text-primary">Card</span>
+            </span>
           </p>
         </div>
       </main>
+
+      {/* Floating QR  */}
+      {typeof window !== "undefined"
+        ? createPortal(
+            <div
+              className="fixed right-6 z-50 hidden lg:block"
+              style={{ bottom: "max(1.5rem, env(safe-area-inset-bottom))" }}
+            >
+              <QrForCurrentPage
+                size={200}
+                className="shadow-xl ring-1 ring-white/10"
+              />
+            </div>,
+            document.body
+          )
+        : null}
     </Theming>
   );
 }

@@ -54,9 +54,10 @@ import {
 import {
   getSocials,
   upsertSocial,
-  deleteSocial,
   restoreSocial,
   type SocialLink,
+  SoftDeleteSocial,
+  HardDeleteSocial,
 } from "@/services/social.services";
 import { toPublicUrl } from "@/lib/image-url";
 
@@ -303,7 +304,7 @@ export default function DashboardPage() {
 
   const onDeleteSocial = async (s: SocialItem) => {
     try {
-      await deleteSocial(s.id);
+      await HardDeleteSocial(s.id);
       await refetchSocials();
       toast.success("Social deleted");
     } catch (e: any) {
@@ -569,9 +570,9 @@ export default function DashboardPage() {
               }}
               onDelete={async () => {
                 if (!selectedSocial.id) return;
-                await deleteSocial(selectedSocial.id);
+                await SoftDeleteSocial(selectedSocial.id);
                 await refetchSocials();
-                toast.success("Social deleted");
+                toast.success("Social deactivated");
               }}
             />
 

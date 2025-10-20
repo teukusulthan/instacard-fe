@@ -17,6 +17,7 @@ import {
 import { toPublicUrl } from "@/lib/image-url";
 import { EditProfileDialog } from "@/components/dialogs/EditProfileDialog";
 import { getMe, type User } from "@/services/user.services";
+import { logoutRequest } from "@/services/auth.services";
 
 export type NavbarProps = {
   brand?: string;
@@ -134,6 +135,14 @@ export function Navbar({
     [profile.name, profile.bio, avatarSrc]
   );
 
+  const handleLogout = () => {
+    try {
+      logoutRequest;
+    } catch (error) {
+      throw error;
+    }
+  };
+
   return (
     <header
       className={[
@@ -246,7 +255,7 @@ export function Navbar({
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   className="text-destructive focus:text-destructive gap-2 cursor-pointer"
-                  onClick={() => onLogout?.()}
+                  onClick={() => handleLogout?.()}
                 >
                   <LogOut className="h-4 w-4" />
                   Logout

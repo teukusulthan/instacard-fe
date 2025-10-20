@@ -52,7 +52,7 @@ export function EditSocialDialog({
     const map: Record<string, string> = {
       instagram: "Instagram",
       tiktok: "TikTok",
-      x: "X (Twitter)",
+      x: "X",
       linkedin: "LinkedIn",
       youtube: "YouTube",
       github: "GitHub",
