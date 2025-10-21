@@ -1,12 +1,8 @@
 import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
 import type { PayloadAction } from "@reduxjs/toolkit";
 import type { LoginPayload } from "@/types/auth";
-import {
-  loginRequest,
-  verifyRequest,
-  logoutRequest,
-} from "@/services/auth.services";
-import type { User } from "@/services/user.services";
+import { loginRequest, logoutRequest } from "@/services/auth.services";
+import { getMe as getMeRequest, type User } from "@/services/user.services";
 
 type ApiEnvelope<T> = {
   status?: string;
@@ -28,50 +24,74 @@ export type AuthState = {
   user: User | null;
   status: "idle" | "loading" | "authenticated" | "error";
   error: string | null;
+  lastFetchedAt: number | null;
+  bootstrapped: boolean;
 };
 
 const initialState: AuthState = {
   user: null,
   status: "idle",
   error: null,
+  lastFetchedAt: null,
+  bootstrapped: false,
 };
 
-/** Verify */
-export const verifySession = createAsyncThunk<User>(
-  "auth/verifySession",
-  async (_, { rejectWithValue }) => {
-    try {
-      const res = await verifyRequest();
-      const user = unwrap<User>(res.data);
-      if (!user || !user.id) throw new Error("Invalid verify response");
-      return user;
-    } catch (e: any) {
-      return rejectWithValue(e?.message || "Verify failed");
-    }
-  }
-);
+function onAuthPage() {
+  if (typeof window === "undefined") return false;
+  const p = window.location.pathname;
+  return p === "/login" || p === "/register" || p === "/forgot-password";
+}
 
-/** Login */
-export const loginAndVerify = createAsyncThunk<
+export const getMe = createAsyncThunk<
   User,
-  LoginPayload,
-  { rejectValue: string }
->("auth/loginAndVerify", async (payload, { rejectWithValue }) => {
+  void,
+  { state: { auth: AuthState } }
+>("auth/getMe", async (_, { getState, rejectWithValue }) => {
+  if (onAuthPage()) return rejectWithValue("skip_on_auth_page");
+  const now = Date.now();
+  const last = getState().auth.lastFetchedAt;
+  if (last && now - last < 3000) return rejectWithValue("throttled");
   try {
-    await loginRequest(payload);
-    const verified = await verifyRequest();
-    const user = unwrap<User>(verified.data);
-    if (!user || !user.id) throw new Error("Invalid verify response");
+    const res = await getMeRequest();
+    const user = unwrap<User>((res as any)?.data ?? res);
+    if (!user || !user.id) throw new Error("Unauthorized");
     return user;
   } catch (e: any) {
-    const msg = e instanceof Error ? e.message : String(e);
+    const msg =
+      e?.response?.status === 401
+        ? "unauthorized"
+        : e?.message || "getMe_failed";
     return rejectWithValue(msg);
   }
 });
 
-/** Logout sederhana. */
+export const login = createAsyncThunk<
+  User | null,
+  LoginPayload,
+  { rejectValue: string }
+>("auth/login", async (payload, { rejectWithValue }) => {
+  try {
+    await loginRequest(payload);
+    try {
+      const meRes = await getMeRequest();
+      const me = unwrap<User>((meRes as any)?.data ?? meRes);
+      return me?.id ? me : null;
+    } catch {
+      return null;
+    }
+  } catch (e: any) {
+    const msg = e?.response?.data?.message || e?.message || "login_failed";
+    return rejectWithValue(msg);
+  }
+});
+
+/** Logout sederhana */
 export const logout = createAsyncThunk("auth/logout", async () => {
-  await logoutRequest();
+  try {
+    await logoutRequest();
+  } catch {
+    /* noop */
+  }
   return null;
 });
 
@@ -83,55 +103,59 @@ const authSlice = createSlice({
       state.user = null;
       state.status = "idle";
       state.error = null;
+      state.lastFetchedAt = null;
+      state.bootstrapped = false;
+    },
+    setBootstrapped(state, action: PayloadAction<boolean | undefined>) {
+      state.bootstrapped = action.payload ?? true;
     },
   },
   extraReducers: (builder) => {
-    // verifySession
-    builder
-      .addCase(verifySession.pending, (s) => {
-        s.status = "loading";
-        s.error = null;
-      })
-      .addCase(verifySession.fulfilled, (s, a: PayloadAction<User>) => {
-        s.status = "authenticated";
-        s.user = a.payload;
-      })
-      .addCase(verifySession.rejected, (s, a) => {
-        s.status = "error";
-        s.error = (a.payload as string) ?? a.error.message ?? "Verify failed";
-        s.user = null;
-      });
-
-    // loginAndVerify
-    builder
-      .addCase(loginAndVerify.pending, (s) => {
-        s.status = "loading";
-        s.error = null;
-      })
-      .addCase(loginAndVerify.fulfilled, (s, a: PayloadAction<User>) => {
-        s.status = "authenticated";
-        s.user = a.payload;
-      })
-      .addCase(loginAndVerify.rejected, (s, a) => {
-        s.status = "error";
-        s.error = (a.payload as string) ?? a.error.message ?? "Login failed";
-        s.user = null;
-      });
-
-    // logout
-    builder.addCase(logout.fulfilled, (s) => {
-      s.user = null;
-      s.status = "idle";
+    builder.addCase(getMe.pending, (s) => {
+      s.status = "loading";
       s.error = null;
+    });
+    builder.addCase(getMe.fulfilled, (s, a: PayloadAction<User>) => {
+      s.status = "authenticated";
+      s.user = a.payload;
+      s.lastFetchedAt = Date.now();
+    });
+    builder.addCase(getMe.rejected, (s, a) => {
+      s.status = a.payload === "unauthorized" ? "idle" : "error";
+      s.error = (a.payload as string) ?? a.error.message ?? "getMe_failed";
+      if (a.payload === "unauthorized") s.user = null;
+      s.lastFetchedAt = Date.now();
+    });
+
+    builder.addCase(login.pending, (s) => {
+      s.status = "loading";
+      s.error = null;
+    });
+    builder.addCase(login.fulfilled, (s, a: PayloadAction<User | null>) => {
+      if (a.payload?.id) {
+        s.status = "authenticated";
+        s.user = a.payload;
+      } else {
+        s.status = "idle";
+      }
+    });
+    builder.addCase(login.rejected, (s, a) => {
+      s.status = "error";
+      s.error = (a.payload as string) ?? a.error.message ?? "login_failed";
+      s.user = null;
+    });
+
+    builder.addCase(logout.fulfilled, (s) => {
+      Object.assign(s, initialState);
     });
   },
 });
 
-export const { resetAuth } = authSlice.actions;
+export const { resetAuth, setBootstrapped } = authSlice.actions;
 export default authSlice.reducer;
 
 export const selectUser = (s: { auth: AuthState }) => s.auth.user;
-export const selectUserId = (s: { auth: AuthState }) => s.auth.user?.id ?? null; // kompatibel
+export const selectUserId = (s: { auth: AuthState }) => s.auth.user?.id ?? null;
 export const selectAuthStatus = (s: { auth: AuthState }) => s.auth.status;
 export const selectAuthError = (s: { auth: AuthState }) => s.auth.error;
 export const selectIsAuthenticated = (s: { auth: AuthState }) =>

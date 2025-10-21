@@ -2,32 +2,59 @@ import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 
 const AUTH_ROUTES = ["/login", "/register", "/forgot-password"];
-const PUBLIC_PREFIX = [
+
+const PUBLIC_STATIC_PREFIX = [
   "/_next",
-  "/assets",
-  "/public",
+  "/__nextjs",
   "/favicon.ico",
   "/robots.txt",
   "/sitemap.xml",
 ];
 
-const API_BASE_PATH = "/api/v1";
+const RESERVED_SINGLE_SEGMENTS = new Set<string>([
+  "login",
+  "register",
+  "forgot-password",
+  "dashboard",
+  "settings",
+  "account",
+  "api",
+  "_next",
+  "__nextjs",
+  "assets",
+  "public",
+  "favicon.ico",
+  "robots.txt",
+  "sitemap.xml",
+]);
 
-function isPublic(pathname: string) {
-  if (PUBLIC_PREFIX.some((p) => pathname.startsWith(p))) return true;
-  return AUTH_ROUTES.includes(pathname);
+const API_VERIFY_PATH = "/api/v1/auth/verify";
+
+function isStaticPublic(pathname: string) {
+  return PUBLIC_STATIC_PREFIX.some((p) => pathname.startsWith(p));
 }
 
-function getVerifyUrl(req: NextRequest) {
-  return new URL(`${API_BASE_PATH}/auth/verify`, req.nextUrl.origin).toString();
+function isRoot(pathname: string) {
+  return pathname === "/";
+}
+
+// Whitelist username publik: hanya 1 segmen & bukan reserved
+function isPublicUsername(pathname: string) {
+  if (!pathname || pathname === "/") return false;
+  const segments = pathname.split("/").filter(Boolean);
+  if (segments.length !== 1) return false;
+  return !RESERVED_SINGLE_SEGMENTS.has(segments[0]);
+}
+
+function isAuthRoute(pathname: string) {
+  return AUTH_ROUTES.includes(pathname);
 }
 
 async function verifySession(req: NextRequest) {
   const cookieHeader = req.headers.get("cookie") ?? "";
   if (!cookieHeader) return false;
-
   try {
-    const res = await fetch(getVerifyUrl(req), {
+    const res = await fetch(new URL(API_VERIFY_PATH, req.nextUrl.origin), {
       method: "GET",
       headers: { cookie: cookieHeader },
       cache: "no-store",
@@ -41,19 +68,21 @@ async function verifySession(req: NextRequest) {
 export async function middleware(req: NextRequest) {
   const { pathname, search } = req.nextUrl;
 
-  if (isPublic(pathname)) return NextResponse.next();
+  if (isStaticPublic(pathname)) return NextResponse.next();
+
+  if (isRoot(pathname) || isPublicUsername(pathname)) {
+    return NextResponse.next();
+  }
+
+  if (isAuthRoute(pathname)) {
+    return NextResponse.next();
+  }
 
   const ok = await verifySession(req);
-  const isAuthRoute = AUTH_ROUTES.includes(pathname);
-
-  if (!ok && !isAuthRoute) {
+  if (!ok) {
     const url = new URL("/login", req.url);
     url.searchParams.set("redirect", pathname + search);
     return NextResponse.redirect(url);
-  }
-
-  if (ok && isAuthRoute) {
-    return NextResponse.redirect(new URL("/dashboard", req.url));
   }
 
   return NextResponse.next();
@@ -61,6 +90,6 @@ export async function middleware(req: NextRequest) {
 
 export const config = {
   matcher: [
-    "/((?!api/.*|_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml).*)",
+    "/((?!api/.*|_next/static|_next/image|_next/data|favicon.ico|robots.txt|sitemap.xml|__nextjs/.*).*)",
   ],
 };

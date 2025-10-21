@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Copy, Eye, LogOut, Moon, Sun, Pencil } from "lucide-react";
 import { toast } from "sonner";
 
@@ -92,6 +93,7 @@ export function Navbar({
   showUserNameNearBrand = false,
   onProfileUpdated,
 }: NavbarProps) {
+  const router = useRouter();
   const publicUrl = profileHandle ? `${baseDomain}/${profileHandle}` : null;
   const defaultPreviewHref =
     previewHref ?? (profileHandle ? `/${profileHandle}` : "#");
@@ -102,7 +104,12 @@ export function Navbar({
     name: string;
     bio: string;
     avatarUrl: string;
-  }>({ name: "User", bio: "", avatarUrl: "" });
+  }>({
+    name: "User",
+    bio: "",
+    avatarUrl: "",
+  });
+  const [loggingOut, setLoggingOut] = React.useState(false);
 
   React.useEffect(() => {
     let ok = true;
@@ -135,13 +142,20 @@ export function Navbar({
     [profile.name, profile.bio, avatarSrc]
   );
 
-  const handleLogout = () => {
+  const handleLogout = React.useCallback(async () => {
+    if (loggingOut) return;
+    setLoggingOut(true);
     try {
-      logoutRequest;
-    } catch (error) {
-      throw error;
+      await logoutRequest();
+      toast.success("Logged out");
+      onLogout?.();
+      router.replace("/login");
+    } catch {
+      toast.error("Failed to logout");
+    } finally {
+      setLoggingOut(false);
     }
-  };
+  }, [loggingOut, onLogout, router]);
 
   return (
     <header
@@ -237,7 +251,6 @@ export function Navbar({
                       className="h-full w-full object-cover"
                       src={avatarSrc}
                       alt={profile.name || "User"}
-                      style={{ objectFit: "cover" }}
                     />
                     <AvatarFallback className="text-[11px] font-medium">
                       {getInitials(profile.name)}
@@ -248,14 +261,21 @@ export function Navbar({
               <DropdownMenuContent align="end" className="w-44">
                 <DropdownMenuItem
                   className="gap-2 cursor-pointer"
-                  onClick={() => setOpenEdit(true)}
+                  onSelect={(e) => {
+                    e.preventDefault();
+                    setOpenEdit(true);
+                  }}
                 >
                   <Pencil className="h-4 w-4" />
                   Edit profile
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   className="text-destructive focus:text-destructive gap-2 cursor-pointer"
-                  onClick={() => handleLogout?.()}
+                  onSelect={(e) => {
+                    e.preventDefault();
+                    handleLogout();
+                  }}
+                  disabled={loggingOut}
                 >
                   <LogOut className="h-4 w-4" />
                   Logout
