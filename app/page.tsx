@@ -458,7 +458,7 @@ export default function LandingPage() {
           <div className="grid items-center gap-8 md:grid-cols-[1.2fr_0.8fr]">
             <div>
               <h3 className="text-2xl font-semibold tracking-tight md:text-3xl">
-                “After using Instacard, our CTR jumped 28% in two weeks.”
+                “After using InstaCard, our CTR jumped 28% in two weeks.”
               </h3>
               <p className="mt-3 max-w-2xl text-muted-foreground">
                 Clean design, clear hierarchy, and fast performance. that is the
