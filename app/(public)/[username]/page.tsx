@@ -24,6 +24,7 @@ import {
 import { toPublicUrl } from "@/lib/image-url";
 import { QrForCurrentPage } from "@/components/QrForCurrentPage";
 
+/* ---------- utils ---------- */
 const platformIcon: Record<SocialPlatform, IconType> = {
   instagram: FaInstagram,
   tiktok: FaTiktok,
@@ -55,6 +56,7 @@ function domain(u: string) {
   }
 }
 
+/* ---------- theming ---------- */
 function Theming({
   theme,
   children,
@@ -76,7 +78,7 @@ function Theming({
         className="pointer-events-none fixed inset-0 -z-10 opacity-[0.6]"
         style={{
           background:
-            "radial-gradient(40% 30% at 50% 0%, rgba(120,119,198,0.18) 0%, rgba(120,119,198,0) 60%), radial-gradient(40% 40% at 80% 20%, rgba(56,189,248,0.12) 0%, rgba(56,189,248,0) 60%)",
+            "radial-gradient(40% 30% at 50% 0%, rgba(120,119,198,0.18) 0%, rgba(120,119,198,0) 60%), radial-gradient(40% 40% at 80% 20%, rgba(56,189,248,0.12) 0%, rgba(56,189,248,0) 0%)",
         }}
       />
       {children}
@@ -84,6 +86,57 @@ function Theming({
   );
 }
 
+/* ---------- skeletons ---------- */
+function HeaderSkeleton() {
+  return (
+    <header className="px-6 pt-16 pb-8">
+      <div className="mx-auto max-w-2xl text-center animate-pulse">
+        <div className="mx-auto h-20 w-20 rounded-full bg-white/10 ring-2 ring-white/10" />
+        <div className="mx-auto mt-4 h-5 w-40 rounded bg-white/10" />
+        <div className="mx-auto mt-2 h-3 w-28 rounded bg-white/10" />
+        <div className="mx-auto mt-3 h-10 w-72 rounded bg-white/10" />
+        <div className="mt-4 flex flex-wrap items-center justify-center gap-3">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className="h-8 w-8 rounded-full bg-white/10" />
+          ))}
+        </div>
+      </div>
+    </header>
+  );
+}
+
+function LinksSkeleton() {
+  return (
+    <main className="px-6 pb-16">
+      <ul className="mx-auto grid max-w-lg gap-3 animate-pulse">
+        {Array.from({ length: 5 }).map((_, i) => (
+          <li key={i}>
+            <div className="mx-2 rounded-2xl bg-white/5 px-5 py-4 ring-1 ring-white/10">
+              <div className="h-4 w-40 rounded bg-white/10" />
+              <div className="mt-2 h-3 w-28 rounded bg-white/10" />
+            </div>
+          </li>
+        ))}
+      </ul>
+      <div className="mt-10 text-center opacity-60">
+        <div className="mx-auto h-px max-w-lg bg-white/10" />
+        <div className="mx-auto mt-4 h-4 w-52 rounded bg-white/10" />
+      </div>
+    </main>
+  );
+}
+
+/* ---------- portal helper (prevents hydration mismatch) ---------- */
+function ClientOnlyPortal({ children }: { children: React.ReactNode }) {
+  const [mounted, setMounted] = React.useState(false);
+  React.useEffect(() => {
+    setMounted(true);
+  }, []);
+  if (!mounted) return null; // SSR output === first client render -> no mismatch
+  return createPortal(children as React.ReactNode, document.body);
+}
+
+/* ---------- page ---------- */
 export default function PublicProfilePage() {
   const router = useRouter();
   const params = useParams();
@@ -94,6 +147,7 @@ export default function PublicProfilePage() {
       ? (params as any).username[0]
       : "";
   const username = decodeURIComponent(raw ?? "");
+
   const [data, setData] = React.useState<PublicProfile | null | "loading">(
     "loading"
   );
@@ -129,30 +183,46 @@ export default function PublicProfilePage() {
     };
   }, [username]);
 
+  const themeForRender =
+    data !== "loading" && data ? (data as any).theme : undefined;
+
   if (data === "loading") {
     return (
-      <div className="min-h-screen grid place-items-center">
-        <div className="h-28 w-28 rounded-full bg-zinc-800 animate-pulse" />
-      </div>
+      <Theming theme={themeForRender}>
+        <HeaderSkeleton />
+        <LinksSkeleton />
+        <ClientOnlyPortal>
+          <div
+            className="fixed right-6 z-50 hidden lg:block"
+            style={{ bottom: "max(1.5rem, env(safe-area-inset-bottom))" }}
+          >
+            <div className="h-[200px] w-[200px] animate-pulse rounded-lg bg-white/5 ring-1 ring-white/10" />
+          </div>
+        </ClientOnlyPortal>
+      </Theming>
     );
   }
 
   if (data === null || error) {
     return (
-      <div className="min-h-screen grid place-items-center px-6">
-        <div className="text-center max-w-md">
-          <h2 className="text-xl font-semibold">
-            {error ? "Gagal memuat profil" : "Profil tidak ditemukan"}
-          </h2>
-          {error ? <p className="mt-2 text-sm text-zinc-500">{error}</p> : null}
-          <div className="mt-6 flex items-center justify-center gap-3">
-            <Button onClick={() => router.refresh()}>Coba lagi</Button>
-            <Button variant="secondary" onClick={() => router.push("/")}>
-              Beranda
-            </Button>
+      <Theming theme={themeForRender}>
+        <div className="min-h-screen grid place-items-center px-6">
+          <div className="text-center max-w-md">
+            <h2 className="text-xl font-semibold">
+              {error ? "Gagal memuat profil" : "Profil tidak ditemukan"}
+            </h2>
+            {error ? (
+              <p className="mt-2 text-sm text-zinc-500">{error}</p>
+            ) : null}
+            <div className="mt-6 flex items-center justify-center gap-3">
+              <Button onClick={() => router.refresh()}>Coba lagi</Button>
+              <Button variant="secondary" onClick={() => router.push("/")}>
+                Beranda
+              </Button>
+            </div>
           </div>
         </div>
-      </div>
+      </Theming>
     );
   }
 
@@ -244,21 +314,17 @@ export default function PublicProfilePage() {
         </div>
       </main>
 
-      {/* Floating QR  */}
-      {typeof window !== "undefined"
-        ? createPortal(
-            <div
-              className="fixed right-6 z-50 hidden lg:block"
-              style={{ bottom: "max(1.5rem, env(safe-area-inset-bottom))" }}
-            >
-              <QrForCurrentPage
-                size={200}
-                className="shadow-xl ring-1 ring-white/10"
-              />
-            </div>,
-            document.body
-          )
-        : null}
+      <ClientOnlyPortal>
+        <div
+          className="fixed right-6 z-50 hidden lg:block"
+          style={{ bottom: "max(1.5rem, env(safe-area-inset-bottom))" }}
+        >
+          <QrForCurrentPage
+            size={200}
+            className="shadow-xl ring-1 ring-white/10"
+          />
+        </div>
+      </ClientOnlyPortal>
     </Theming>
   );
 }

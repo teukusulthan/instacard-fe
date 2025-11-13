@@ -180,7 +180,7 @@ export default function LandingPage() {
     {
       icon: <Zap className="h-5 w-5" />,
       title: "High Compability",
-      desc: "Built for all devices . SEO-friendly Lighthouse scores.",
+      desc: "Built for all devices . SEO-friendly.",
     },
     {
       icon: <Sparkles className="h-5 w-5" />,

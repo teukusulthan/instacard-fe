@@ -67,7 +67,7 @@ const PLATFORM_OPTIONS: PlatformOption[] = [
     key: "youtube",
     label: "YouTube",
     icon: FaYoutube,
-    usernameHint: "yourhandle",
+    usernameHint: "your-username",
   },
   {
     key: "github",
