@@ -1,12 +1,34 @@
-import * as React from "react";
-import { requireUser } from "@/lib/auth";
-import DashboardShell from "./dashboard-shell";
+// app/(app)/layout.tsx
+"use client";
 
-export default async function ProtectedLayout({
+import * as React from "react";
+import { useRouter } from "next/navigation";
+import DashboardShell from "./dashboard-shell";
+import { useAppSelector } from "@/stores/hooks";
+import { selectUser, selectAuthStatus } from "@/stores/auth.slice";
+
+export default function ProtectedLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const user = await requireUser();
+  const router = useRouter();
+  const user = useAppSelector(selectUser);
+  const status = useAppSelector(selectAuthStatus);
+
+  // Kalau belum login, lempar ke /login?redirect=/dashboard
+  React.useEffect(() => {
+    if (status === "loading") return;
+
+    if (!user?.id) {
+      router.replace("/login?redirect=/dashboard");
+    }
+  }, [user, status, router]);
+
+  // Bisa kasih loader di sini kalau mau
+  if (!user?.id) {
+    return null;
+  }
+
   return <DashboardShell user={user}>{children}</DashboardShell>;
 }
