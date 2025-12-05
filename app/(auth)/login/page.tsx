@@ -21,10 +21,11 @@ import { Separator } from "@/components/ui/separator";
 import { Loader2, Eye, EyeOff } from "lucide-react";
 
 import { useAppDispatch } from "@/stores/hooks";
-// Ganti: pakai thunk login baru (tanpa verify)
 import { login } from "@/stores/auth.slice";
 
 import { LoginSchema, type LoginValues } from "@/shemas/auth.schema";
+import { Spinner } from "@/components/ui/spinner";
+import { getMe } from "@/services/user.services";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -32,6 +33,7 @@ export default function LoginPage() {
   const dispatch = useAppDispatch();
 
   const [showPassword, setShowPassword] = React.useState(false);
+  const [checking, setChecking] = React.useState(true);
 
   const form = useForm<LoginValues>({
     resolver: zodResolver(LoginSchema),
@@ -39,6 +41,36 @@ export default function LoginPage() {
     mode: "onChange",
     reValidateMode: "onChange",
   });
+
+  const fromLogout = search.get("logged_out") === "1";
+
+  // Guard: kalau sudah punya token dan BUKAN habis logout, lempar ke dashboard
+  React.useEffect(() => {
+    // kalau baru logout, jangan cek getMe → langsung tampilkan form
+    if (fromLogout) {
+      setChecking(false);
+      return;
+    }
+
+    let cancelled = false;
+
+    (async () => {
+      try {
+        await getMe(); // kalau ini sukses, berarti token masih valid
+        if (cancelled) return;
+        router.replace("/dashboard");
+      } catch {
+        // kalau gagal (401, dsb) berarti belum login → tampilkan form
+        if (!cancelled) {
+          setChecking(false);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [router, fromLogout]);
 
   const onSubmit = async (values: LoginValues) => {
     try {
@@ -48,14 +80,31 @@ export default function LoginPage() {
       router.replace(
         redirect && redirect.startsWith("/") ? redirect : "/dashboard"
       );
-    } catch (e) {
-      const msg =
-        typeof e === "string" ? e : (e as any)?.message || "Login failed";
+    } catch (error: unknown) {
+      let msg = "Login failed";
+      if (typeof error === "string") {
+        msg = error;
+      } else if (
+        error &&
+        typeof error === "object" &&
+        "message" in error &&
+        typeof (error as { message?: unknown }).message === "string"
+      ) {
+        msg = (error as { message?: string }).message ?? msg;
+      }
       toast.error(msg);
     }
   };
 
   const { isSubmitting, isValid } = form.formState;
+
+  if (checking) {
+    return (
+      <div className="flex justify-center items-center h-175 w-fullß">
+        <Spinner className="size-8 text-neutral-400" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen grid grid-cols-1 md:grid-cols-2 bg-background">
@@ -124,17 +173,7 @@ export default function LoginPage() {
                             type="button"
                             onClick={() => setShowPassword((s) => !s)}
                             className="absolute inset-y-0 right-2 grid place-items-center px-2 text-muted-foreground hover:text-foreground"
-                            aria-label={
-                              showPassword ? "Hide password" : "Show password"
-                            }
-                            tabIndex={-1}
-                          >
-                            {showPassword ? (
-                              <EyeOff className="h-4 w-4" />
-                            ) : (
-                              <Eye className="h-4 w-4" />
-                            )}
-                          </button>
+                          ></button>
                         </div>
                       </FormControl>
                     </FormItem>

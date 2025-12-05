@@ -38,6 +38,8 @@ export type NavbarProps = {
 type UserWithAvatar = User & {
   avatar_url?: string | null;
   avatar?: string | null;
+  username?: string | null;
+  handle?: string | null;
 };
 
 function getInitials(name?: string) {
@@ -68,21 +70,18 @@ function useSimpleTheme() {
       // ignore
     }
     setTheme(initial);
-    if (initial === "dark") {
-      document.documentElement.classList.add("dark");
-    } else {
-      document.documentElement.classList.remove("dark");
-    }
   }, []);
 
   React.useEffect(() => {
-    if (!mounted) return;
+    const root = document.documentElement;
+    if (theme === "dark") root.classList.add("dark");
+    else root.classList.remove("dark");
     try {
       localStorage.setItem("theme", theme);
     } catch {
       // ignore
     }
-  }, [theme, mounted]);
+  }, [theme]);
 
   return {
     theme,
@@ -92,6 +91,7 @@ function useSimpleTheme() {
 }
 
 export function Navbar({
+  brand = "Instacard",
   brandHref = "",
   profileHandle,
   baseDomain = "instacard.app",
@@ -105,9 +105,6 @@ export function Navbar({
   onProfileUpdated,
 }: NavbarProps) {
   const router = useRouter();
-  const publicUrl = profileHandle ? `${baseDomain}/${profileHandle}` : null;
-  const defaultPreviewHref =
-    previewHref ?? (profileHandle ? `/${profileHandle}` : "#");
   const { theme, mounted, toggle } = useSimpleTheme();
 
   const [openEdit, setOpenEdit] = React.useState(false);
@@ -115,10 +112,12 @@ export function Navbar({
     name: string;
     bio: string;
     avatarUrl: string;
+    handle?: string;
   }>({
     name: "User",
     bio: "",
     avatarUrl: "",
+    handle: undefined,
   });
   const [loggingOut, setLoggingOut] = React.useState(false);
 
@@ -126,15 +125,25 @@ export function Navbar({
     let ok = true;
     (async () => {
       try {
-        const u = (await getMe()) as UserWithAvatar | null;
-        if (!ok || !u) return;
+        const u = (await getMe()) as UserWithAvatar;
+        if (!ok) return;
+
         const name = (u.name?.trim() || u.username?.trim() || "User").slice(
           0,
           80
         );
         const bio = (u.bio ?? "") || "";
         const avatarUrl = toPublicUrl(u.avatar_url ?? u.avatar ?? "") || "";
-        setProfile({ name, bio, avatarUrl });
+
+        const handleFromUser =
+          (u.handle ?? u.username ?? "").toString().trim() || undefined;
+
+        setProfile({
+          name,
+          bio,
+          avatarUrl,
+          handle: handleFromUser,
+        });
       } catch {
         // ignore
       }
@@ -144,7 +153,14 @@ export function Navbar({
     };
   }, []);
 
-  const avatarSrc = toPublicUrl(profile.avatarUrl || "") || "";
+  const effectiveHandle = profileHandle ?? profile.handle;
+  const publicUrl = effectiveHandle ? `${baseDomain}/${effectiveHandle}` : null;
+
+  const defaultPreviewHref = effectiveHandle
+    ? `/${effectiveHandle}`
+    : previewHref ?? "#";
+
+  const avatarSrc = toPublicUrl(profile.avatarUrl) || "";
   const title = mounted
     ? `Switch to ${theme === "dark" ? "light" : "dark"} mode`
     : "Toggle theme";
@@ -169,27 +185,6 @@ export function Navbar({
     }
   }, [loggingOut, onLogout, router]);
 
-  const handleCopyPublicUrl = React.useCallback(async () => {
-    if (!publicUrl) return;
-    try {
-      await navigator.clipboard.writeText(`https://${publicUrl}`);
-      toast.success("Public link copied");
-    } catch {
-      toast.error("Failed to copy link");
-    }
-  }, [publicUrl]);
-
-  const handleToggleTheme = React.useCallback(() => {
-    toggle();
-    if (mounted) {
-      if (theme === "dark") {
-        document.documentElement.classList.remove("dark");
-      } else {
-        document.documentElement.classList.add("dark");
-      }
-    }
-  }, [toggle, mounted, theme]);
-
   return (
     <header
       className={[
@@ -204,43 +199,40 @@ export function Navbar({
       <div className="mx-auto w-full max-w-7xl px-5 sm:px-8 lg:px-26">
         <div className="flex items-center justify-between py-3.5">
           <div className="flex items-center gap-3">
-            <Link href={brandHref} className="inline-flex items-center gap-2">
+            <Link
+              href={brandHref}
+              className="inline-flex items-center gap-2"
+              aria-label={brand}
+            >
               <span className="text-2xl font-bold tracking-tight">
                 Insta<span className="text-primary">Card</span>
               </span>
               {showUserNameNearBrand && profile.name ? (
-                <span className="ml-2 hidden text-sm text-muted-foreground sm:inline">
-                  — {profile.name}
+                <span className="ml-2 hidden sm:inline text-sm text-muted-foreground">
+                  {profile.name}
                 </span>
               ) : null}
             </Link>
 
             <Separator
               orientation="vertical"
-              className="mx-2 hidden h-7 sm:block"
+              className="mx-2 h-7 hidden sm:block"
             />
 
-            <div className="hidden items-center gap-2 text-xs text-muted-foreground sm:flex">
-              {publicUrl ? (
-                <>
-                  <span className="hidden md:inline">Public profile:</span>
-                  <button
-                    type="button"
-                    onClick={handleCopyPublicUrl}
-                    className="inline-flex items-center gap-1 rounded-full border bg-muted/60 px-2.5 py-1 text-[11px] font-medium text-foreground shadow-sm transition hover:bg-muted"
-                  >
-                    <span className="max-w-[120px] truncate sm:max-w-[160px]">
-                      {publicUrl}
-                    </span>
-                    <Copy className="h-3.5 w-3.5" />
-                  </button>
-                </>
-              ) : (
-                <span className="text-xs text-muted-foreground">
-                  Connect your profile to go live faster.
-                </span>
-              )}
-            </div>
+            <Link
+              href={defaultPreviewHref}
+              target={previewNewTab ? "_blank" : undefined}
+              className="inline-flex"
+            >
+              <Button
+                variant="outline"
+                className="cursor-pointer rounded-full h-9 px-4 text-sm"
+                title="See preview"
+              >
+                <Eye className="mr-2 h-4 w-4" />
+                See preview
+              </Button>
+            </Link>
           </div>
 
           <div className="flex items-center gap-2.5">
@@ -248,101 +240,87 @@ export function Navbar({
               <div className="hidden sm:block">{rightActions}</div>
             ) : null}
 
-            {defaultPreviewHref ? (
-              <Link
-                href={defaultPreviewHref}
-                target={previewNewTab ? "_blank" : "_self"}
+            {publicUrl && (
+              <button
+                type="button"
+                onClick={async () => {
+                  try {
+                    await navigator.clipboard.writeText(publicUrl);
+                    toast.success("Profile URL copied");
+                  } catch {
+                    toast.error("Failed to copy link");
+                  }
+                }}
+                className="hidden md:inline-flex cursor-pointer items-center gap-2 rounded-full border bg-card/70 px-3.5 py-1.5 text-[13px] text-muted-foreground shadow-sm"
+                title="Copy profile URL"
               >
-                <Button
-                  variant="outline"
-                  className="cursor-pointer h-9 rounded-full px-4 text-sm"
-                  title="See preview"
-                >
-                  <Eye className="mr-2 h-4 w-4" />
-                  See preview
-                </Button>
-              </Link>
-            ) : null}
+                <span className="truncate max-w-[200px]">{publicUrl}</span>
+                <Copy className="h-3.5 w-3.5 opacity-70" />
+              </button>
+            )}
 
             <Button
-              variant="ghost"
+              variant="outline"
               size="icon"
-              className="h-8 w-8 rounded-full"
-              onClick={handleToggleTheme}
+              className="h-9 w-9 rounded-full cursor-pointer"
+              onClick={toggle}
               title={title}
+              aria-label={title}
             >
-              {theme === "dark" ? (
-                <Sun className="h-4 w-4" />
-              ) : (
-                <Moon className="h-4 w-4" />
-              )}
+              {mounted ? (
+                theme === "dark" ? (
+                  <Sun className="h-4 w-4" />
+                ) : (
+                  <Moon className="h-4 w-4" />
+                )
+              ) : null}
             </Button>
 
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button
-                  type="button"
-                  className="inline-flex h-9 w-9 items-center justify-center rounded-full border bg-muted/60 text-xs font-medium shadow-sm transition hover:bg-muted"
-                >
-                  <Avatar className="h-7 w-7">
-                    <AvatarImage
-                      src={avatarSrc}
-                      alt={profile.name || "User avatar"}
-                    />
-                    <AvatarFallback className="text-[11px]">
-                      {getInitials(profile.name)}
-                    </AvatarFallback>
-                  </Avatar>
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-52">
-                <div className="flex items-center gap-2 px-2 py-1.5">
-                  <Avatar className="h-8 w-8">
-                    <AvatarImage
-                      src={avatarSrc}
-                      alt={profile.name || "User avatar"}
-                    />
-                    <AvatarFallback className="text-[11px]">
-                      {getInitials(profile.name)}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-medium">
-                      {profile.name || "User"}
-                    </p>
-                    {profileHandle ? (
-                      <p className="truncate text-xs text-muted-foreground">
-                        @{profileHandle}
-                      </p>
-                    ) : null}
-                  </div>
-                </div>
-                <Separator className="my-1" />
-                <DropdownMenuItem
-                  className="cursor-pointer text-xs"
-                  onClick={() => setOpenEdit(true)}
-                >
-                  <Pencil className="mr-2 h-3.5 w-3.5" />
-                  Edit profile
-                </DropdownMenuItem>
-                {publicUrl ? (
-                  <DropdownMenuItem
-                    className="cursor-pointer text-xs"
-                    onClick={handleCopyPublicUrl}
+            {/* DropdownMenu dirender hanya setelah mounted untuk menghindari hydration mismatch Radix */}
+            {mounted && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    className="outline-none rounded-full focus-visible:ring-2 focus-visible:ring-ring"
+                    aria-label="User menu"
                   >
-                    <Copy className="mr-2 h-3.5 w-3.5" />
-                    Copy public link
+                    <Avatar className="h-9 w-9 aspect-square shrink-0 rounded-full overflow-hidden ring-1 cursor-pointer ring-border">
+                      <AvatarImage
+                        className="h-full w-full object-cover"
+                        src={avatarSrc}
+                        alt={profile.name || "User"}
+                      />
+                      <AvatarFallback className="text-[11px] font-medium">
+                        {getInitials(profile.name)}
+                      </AvatarFallback>
+                    </Avatar>
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-44">
+                  <DropdownMenuItem
+                    className="gap-2 cursor-pointer"
+                    onSelect={(e) => {
+                      e.preventDefault();
+                      setOpenEdit(true);
+                    }}
+                  >
+                    <Pencil className="h-4 w-4" />
+                    Edit profile
                   </DropdownMenuItem>
-                ) : null}
-                <DropdownMenuItem
-                  className="cursor-pointer text-xs text-red-600 focus:text-red-600"
-                  onClick={handleLogout}
-                >
-                  <LogOut className="mr-2 h-3.5 w-3.5" />
-                  {loggingOut ? "Logging out..." : "Logout"}
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+                  <DropdownMenuItem
+                    className="text-destructive focus:text-destructive gap-2 cursor-pointer"
+                    onSelect={(e) => {
+                      e.preventDefault();
+                      handleLogout();
+                    }}
+                    disabled={loggingOut}
+                  >
+                    <LogOut className="h-4 w-4" />
+                    Logout
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
           </div>
         </div>
       </div>
@@ -358,11 +336,17 @@ export function Navbar({
         }}
         onSuccess={(user: User) => {
           const u = user as UserWithAvatar;
+          const handleFromUser =
+            (u.handle ?? u.username ?? profile.handle ?? "")
+              .toString()
+              .trim() || profile.handle;
+
           setProfile((p) => ({
             name: user.name ?? p.name,
             bio: user.bio ?? p.bio,
             avatarUrl:
               toPublicUrl(u.avatar_url ?? u.avatar ?? "") ?? p.avatarUrl,
+            handle: handleFromUser,
           }));
           toast.success("Profile updated");
           onProfileUpdated?.(user);

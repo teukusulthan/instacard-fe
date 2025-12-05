@@ -67,6 +67,9 @@ export type PublicLink = {
 };
 
 export type PublicSocial = {
+  is_active: boolean;
+  order_index: number;
+  id: string;
   platform:
     | "instagram"
     | "tiktok"

@@ -1,33 +1,43 @@
-// app/(app)/layout.tsx
 "use client";
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import DashboardShell from "./dashboard-shell";
-import { useAppSelector } from "@/stores/hooks";
-import { selectUser, selectAuthStatus } from "@/stores/auth.slice";
+import Navbar from "@/components/Navbar";
+import { Spinner } from "@/components/ui/spinner";
 
-export default function ProtectedLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+import { getMe } from "@/services/user.services";
+
+export default function AppLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
-  const user = useAppSelector(selectUser);
-  const status = useAppSelector(selectAuthStatus);
+  const [checking, setChecking] = React.useState(true);
 
   React.useEffect(() => {
-    if (status === "loading") return;
+    let cancelled = false;
 
-    if (!user?.id) {
-      router.replace("/login?redirect=/dashboard");
-    }
-  }, [user, status, router]);
+    (async () => {
+      try {
+        await getMe();
+        if (!cancelled) setChecking(false);
+      } catch {
+        if (!cancelled) {
+          setChecking(false);
+          router.replace("/login?redirect=/dashboard");
+        }
+      }
+    })();
 
-  // Bisa kasih loader di sini kalau mau
-  if (!user?.id) {
-    return null;
-  }
+    return () => {
+      cancelled = true;
+    };
+  }, [router]);
 
-  return <DashboardShell user={user}>{children}</DashboardShell>;
+  return (
+    <>
+      <Navbar brandHref="/dashboard" showUserNameNearBrand />
+
+      <main className="flex pt-10 w-full h-150 justify-center items-center">
+        {checking ? <Spinner className="size-8 text-neutral-400" /> : children}
+      </main>
+    </>
+  );
 }

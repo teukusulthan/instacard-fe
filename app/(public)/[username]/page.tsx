@@ -13,24 +13,24 @@ import {
   FaXTwitter,
 } from "react-icons/fa6";
 import type { IconType } from "react-icons";
+
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { getPublicProfile, type PublicProfile } from "@/services/user.services";
 import {
-  getActiveSocials,
-  type SocialLink,
-  type SocialPlatform,
-} from "@/services/social.services";
+  getPublicProfile,
+  type PublicProfile,
+  type PublicSocial,
+} from "@/services/user.services";
 import { toPublicUrl } from "@/lib/image-url";
 import { QrForCurrentPage } from "@/components/QrForCurrentPage";
 
-/* ---------- utils ---------- */
-
 type PublicProfileWithAvatarUrl = PublicProfile & {
   avatar_url?: string | null;
+  avatar?: string | null;
+  socials?: PublicSocial[];
 };
 
-const platformIcon: Record<SocialPlatform, IconType> = {
+const platformIcon: Record<string, IconType> = {
   instagram: FaInstagram,
   tiktok: FaTiktok,
   x: FaXTwitter,
@@ -61,7 +61,6 @@ function domain(u: string) {
   }
 }
 
-/* ---------- theming ---------- */
 function Theming({
   theme,
   children,
@@ -91,7 +90,6 @@ function Theming({
   );
 }
 
-/* ---------- skeletons ---------- */
 function HeaderSkeleton() {
   return (
     <header className="px-6 pt-16 pb-8">
@@ -131,17 +129,15 @@ function LinksSkeleton() {
   );
 }
 
-/* ---------- portal helper (prevents hydration mismatch) ---------- */
 function ClientOnlyPortal({ children }: { children: React.ReactNode }) {
   const [mounted, setMounted] = React.useState(false);
   React.useEffect(() => {
     setMounted(true);
   }, []);
-  if (!mounted) return null; // SSR output === first client render -> no mismatch
+  if (!mounted) return null;
   return createPortal(children as React.ReactNode, document.body);
 }
 
-/* ---------- page ---------- */
 export default function PublicProfilePage() {
   const router = useRouter();
   const params = useParams<{ username?: string | string[] }>();
@@ -157,24 +153,29 @@ export default function PublicProfilePage() {
   const [data, setData] = React.useState<PublicProfile | null | "loading">(
     "loading"
   );
-  const [socials, setSocials] = React.useState<SocialLink[]>([]);
+  const [socials, setSocials] = React.useState<PublicSocial[]>([]);
   const [error, setError] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     let ok = true;
     setData("loading");
     setError(null);
-    Promise.all([
-      getPublicProfile(username),
-      getActiveSocials({ sort: "order", order: "asc" }),
-    ])
-      .then(([profile, actives]) => {
+
+    getPublicProfile(username)
+      .then((profile) => {
         if (!ok) return;
+
+        const profileWithExtras = (profile ?? {}) as PublicProfileWithAvatarUrl;
+
         setData(profile ?? null);
-        const list = Array.isArray(actives?.data) ? actives.data : [];
+
+        const list = Array.isArray(profileWithExtras.socials)
+          ? profileWithExtras.socials
+          : [];
+
         setSocials(
           list
-            .filter((s) => s && s.url && s.is_active)
+            .filter((s) => s && s.url && s.is_active !== false)
             .sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0))
         );
       })
@@ -216,15 +217,15 @@ export default function PublicProfilePage() {
         <div className="min-h-screen grid place-items-center px-6">
           <div className="text-center max-w-md">
             <h2 className="text-xl font-semibold">
-              {error ? "Gagal memuat profil" : "Profil tidak ditemukan"}
+              {error ? "Failed to load profile" : "Profile not found"}
             </h2>
             {error ? (
               <p className="mt-2 text-sm text-zinc-500">{error}</p>
             ) : null}
             <div className="mt-6 flex items-center justify-center gap-3">
-              <Button onClick={() => router.refresh()}>Coba lagi</Button>
+              <Button onClick={() => router.refresh()}>Try Again</Button>
               <Button variant="secondary" onClick={() => router.push("/")}>
-                Beranda
+                Home
               </Button>
             </div>
           </div>
@@ -269,10 +270,11 @@ export default function PublicProfilePage() {
             <div className="mt-4 flex flex-wrap items-center justify-center gap-3 text-zinc-200">
               {socials.map((s) => {
                 const Icon = platformIcon[s.platform];
+                if (!Icon) return null;
                 const href = normalizeUrl(s.url);
                 return (
                   <Link
-                    key={s.id}
+                    key={String(s.id ?? `${s.platform}-${s.url}`)}
                     href={href}
                     target="_blank"
                     rel="noopener noreferrer"

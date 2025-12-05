@@ -7,9 +7,9 @@ export function toPublicUrl(p?: string | null) {
     /\/+$/,
     ""
   );
-  if (val.startsWith("/uploads/")) return base ? `${base}${val}` : val;
-  if (val.startsWith("uploads/")) return base ? `${base}/${val}` : `/${val}`;
+  // if (val.startsWith("/uploads/")) return base ? `${base}${val}` : val;
+  // if (val.startsWith("uploads/")) return base ? `${base}/${val}` : `/${val}`;
 
-  const path = `uploads/user/avatar/${val}`;
+  const path = `user/avatar/${val}`;
   return base ? `${base}/${path}` : `/${path}`;
 }
