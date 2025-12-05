@@ -7,7 +7,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
-import { Eye, EyeOff, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 
 import {
   Form,
@@ -29,6 +29,11 @@ export default function RegisterPage() {
 
   const [showPassword, setShowPassword] = React.useState(false);
   const [showConfirm, setShowConfirm] = React.useState(false);
+
+  React.useEffect(() => {
+    setShowPassword(false);
+    setShowConfirm(false);
+  }, []);
 
   const form = useForm<RegisterValues>({
     resolver: zodResolver(RegisterSchema),
@@ -55,8 +60,9 @@ export default function RegisterPage() {
       });
       toast.success("Account created! Please sign in.");
       router.push("/login");
-    } catch (e: any) {
-      toast.error(e?.message || "Registration failed. Please try again.");
+    } catch (e: unknown) {
+      const err = e as { message?: string };
+      toast.error(err?.message || "Registration failed. Please try again.");
     }
   };
 

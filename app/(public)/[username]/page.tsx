@@ -25,6 +25,11 @@ import { toPublicUrl } from "@/lib/image-url";
 import { QrForCurrentPage } from "@/components/QrForCurrentPage";
 
 /* ---------- utils ---------- */
+
+type PublicProfileWithAvatarUrl = PublicProfile & {
+  avatar_url?: string | null;
+};
+
 const platformIcon: Record<SocialPlatform, IconType> = {
   instagram: FaInstagram,
   tiktok: FaTiktok,
@@ -139,12 +144,13 @@ function ClientOnlyPortal({ children }: { children: React.ReactNode }) {
 /* ---------- page ---------- */
 export default function PublicProfilePage() {
   const router = useRouter();
-  const params = useParams();
+  const params = useParams<{ username?: string | string[] }>();
+  const paramUsername = params.username;
   const raw =
-    typeof (params as any)?.username === "string"
-      ? (params as any).username
-      : Array.isArray((params as any)?.username)
-      ? (params as any).username[0]
+    typeof paramUsername === "string"
+      ? paramUsername
+      : Array.isArray(paramUsername)
+      ? paramUsername[0]
       : "";
   const username = decodeURIComponent(raw ?? "");
 
@@ -172,19 +178,20 @@ export default function PublicProfilePage() {
             .sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0))
         );
       })
-      .catch((e: any) => {
+      .catch((e: unknown) => {
         if (!ok) return;
-        setError(e?.message || "Failed to load profile");
+        const err = e as { message?: string };
+        setError(err?.message || "Failed to load profile");
         setData(null);
         setSocials([]);
       });
+
     return () => {
       ok = false;
     };
   }, [username]);
 
-  const themeForRender =
-    data !== "loading" && data ? (data as any).theme : undefined;
+  const themeForRender = data !== "loading" && data ? data.theme : undefined;
 
   if (data === "loading") {
     return (
@@ -227,8 +234,9 @@ export default function PublicProfilePage() {
   }
 
   const avatarSrc =
-    toPublicUrl((data as any).avatar_url ?? (data as any).avatar ?? "") ||
-    "/avatar-placeholder.jpg";
+    toPublicUrl(
+      (data as PublicProfileWithAvatarUrl).avatar_url ?? data.avatar ?? ""
+    ) || "/avatar-placeholder.jpg";
 
   const links = (data.links ?? [])
     .filter((l) => l.is_active !== false)

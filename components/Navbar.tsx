@@ -15,11 +15,13 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { toPublicUrl } from "@/lib/image-url";
+import { EditProfileDialog } from "@/components/dialogs/EditProfileDialog";
 import { getMe, type User } from "@/services/user.services";
 import { logoutRequest } from "@/services/auth.services";
-import { EditProfileDialog } from "./dialogs/EditProfileDialog";
 
 export type NavbarProps = {
+  brand?: string;
   brandHref?: string;
   profileHandle?: string;
   baseDomain?: string;
@@ -31,6 +33,11 @@ export type NavbarProps = {
   rightActions?: React.ReactNode;
   showUserNameNearBrand?: boolean;
   onProfileUpdated?: (user: User) => void;
+};
+
+type UserWithAvatar = User & {
+  avatar_url?: string | null;
+  avatar?: string | null;
 };
 
 function getInitials(name?: string) {
@@ -84,13 +91,6 @@ function useSimpleTheme() {
   };
 }
 
-function toPublicUrl(path?: string | null) {
-  if (!path) return "";
-  if (path.startsWith("http://") || path.startsWith("https://")) return path;
-  if (path.startsWith("/")) return path;
-  return `/${path}`;
-}
-
 export function Navbar({
   brandHref = "",
   profileHandle,
@@ -126,13 +126,13 @@ export function Navbar({
     let ok = true;
     (async () => {
       try {
-        const u: User = await getMe();
-        if (!ok) return;
-        const name = (u?.name?.trim() || u?.username?.trim() || "User").slice(
+        const u = (await getMe()) as UserWithAvatar | null;
+        if (!ok || !u) return;
+        const name = (u.name?.trim() || u.username?.trim() || "User").slice(
           0,
           80
         );
-        const bio = (u?.bio ?? "") || "";
+        const bio = (u.bio ?? "") || "";
         const avatarUrl = toPublicUrl(u.avatar_url ?? u.avatar ?? "") || "";
         setProfile({ name, bio, avatarUrl });
       } catch {
@@ -144,7 +144,7 @@ export function Navbar({
     };
   }, []);
 
-  const avatarSrc = toPublicUrl(profile.avatarUrl) || "";
+  const avatarSrc = toPublicUrl(profile.avatarUrl || "") || "";
   const title = mounted
     ? `Switch to ${theme === "dark" ? "light" : "dark"} mode`
     : "Toggle theme";
@@ -209,7 +209,7 @@ export function Navbar({
                 Insta<span className="text-primary">Card</span>
               </span>
               {showUserNameNearBrand && profile.name ? (
-                <span className="ml-2 hidden sm:inline text-sm text-muted-foreground">
+                <span className="ml-2 hidden text-sm text-muted-foreground sm:inline">
                   — {profile.name}
                 </span>
               ) : null}
@@ -217,7 +217,7 @@ export function Navbar({
 
             <Separator
               orientation="vertical"
-              className="mx-2 h-7 hidden sm:block"
+              className="mx-2 hidden h-7 sm:block"
             />
 
             <div className="hidden items-center gap-2 text-xs text-muted-foreground sm:flex">
@@ -229,7 +229,7 @@ export function Navbar({
                     onClick={handleCopyPublicUrl}
                     className="inline-flex items-center gap-1 rounded-full border bg-muted/60 px-2.5 py-1 text-[11px] font-medium text-foreground shadow-sm transition hover:bg-muted"
                   >
-                    <span className="truncate max-w-[120px] sm:max-w-[160px]">
+                    <span className="max-w-[120px] truncate sm:max-w-[160px]">
                       {publicUrl}
                     </span>
                     <Copy className="h-3.5 w-3.5" />
@@ -248,14 +248,14 @@ export function Navbar({
               <div className="hidden sm:block">{rightActions}</div>
             ) : null}
 
-            {previewHref ? (
+            {defaultPreviewHref ? (
               <Link
-                href={previewHref}
+                href={defaultPreviewHref}
                 target={previewNewTab ? "_blank" : "_self"}
               >
                 <Button
                   variant="outline"
-                  className="cursor-pointer rounded-full h-9 px-4 text-sm"
+                  className="cursor-pointer h-9 rounded-full px-4 text-sm"
                   title="See preview"
                 >
                   <Eye className="mr-2 h-4 w-4" />
@@ -357,11 +357,12 @@ export function Navbar({
           bio: profile.bio,
         }}
         onSuccess={(user: User) => {
+          const u = user as UserWithAvatar;
           setProfile((p) => ({
             name: user.name ?? p.name,
             bio: user.bio ?? p.bio,
             avatarUrl:
-              toPublicUrl(user.avatar_url ?? user.avatar ?? "") ?? p.avatarUrl,
+              toPublicUrl(u.avatar_url ?? u.avatar ?? "") ?? p.avatarUrl,
           }));
           toast.success("Profile updated");
           onProfileUpdated?.(user);
