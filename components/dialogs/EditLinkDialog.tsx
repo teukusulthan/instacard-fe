@@ -33,11 +33,6 @@ export function EditLinkDialog({
   const [url, setUrl] = React.useState(initial.url);
   const [saving, setSaving] = React.useState(false);
 
-  React.useEffect(() => {
-    setTitle(initial.title);
-    setUrl(initial.url);
-  }, [initial]);
-
   async function handleSave() {
     if (!id) return;
     const t = title.trim();
@@ -49,8 +44,9 @@ export function EditLinkDialog({
       if (onSuccess) await onSuccess();
       toast.success("Link updated");
       onOpenChange(false);
-    } catch (e: any) {
-      toast.error(e?.message ?? "Failed to update link");
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : "Failed to update link";
+      toast.error(message);
     } finally {
       setSaving(false);
     }
@@ -58,11 +54,12 @@ export function EditLinkDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Edit Link</DialogTitle>
+          <DialogTitle>Edit link</DialogTitle>
         </DialogHeader>
-        <div className="space-y-4">
+
+        <div className="grid gap-4 py-2">
           <div className="space-y-2">
             <Label htmlFor="edit-title">Title</Label>
             <Input
@@ -80,15 +77,16 @@ export function EditLinkDialog({
               value={url}
               onChange={(e) => setUrl(e.target.value)}
               placeholder="https://example.com"
-              inputMode="url"
               disabled={saving}
             />
           </div>
         </div>
+
         <DialogFooter>
           <Button
             className="cursor-pointer"
-            variant="outline"
+            type="button"
+            variant="ghost"
             onClick={() => onOpenChange(false)}
             disabled={saving}
           >

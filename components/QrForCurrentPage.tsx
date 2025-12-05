@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Image from "next/image";
 import QRCode from "qrcode";
 
 type QrForCurrentPageProps = {
@@ -15,11 +16,9 @@ export function QrForCurrentPage({
   className = "",
 }: QrForCurrentPageProps) {
   const [dataUrl, setDataUrl] = React.useState<string>("");
-  const [href, setHref] = React.useState<string>("");
 
   React.useEffect(() => {
     const url = typeof window !== "undefined" ? window.location.href : "";
-    setHref(url);
     if (!url) return;
 
     QRCode.toDataURL(url, {
@@ -44,7 +43,7 @@ export function QrForCurrentPage({
         className,
       ].join(" ")}
     >
-      <img
+      <Image
         src={dataUrl}
         alt="QR to this page"
         width={size}

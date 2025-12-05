@@ -28,7 +28,6 @@ import {
   FaLinkedin,
   FaYoutube,
   FaGithub,
-  FaXTwitter,
 } from "react-icons/fa6";
 
 type PlatformOption = {
@@ -49,19 +48,13 @@ const PLATFORM_OPTIONS: PlatformOption[] = [
     key: "tiktok",
     label: "TikTok",
     icon: FaTiktok,
-    usernameHint: "your.username",
-  },
-  {
-    key: "x",
-    label: "X (Twitter)",
-    icon: FaXTwitter,
     usernameHint: "your_username",
   },
   {
     key: "linkedin",
     label: "LinkedIn",
     icon: FaLinkedin,
-    usernameHint: "your-profile",
+    usernameHint: "your-username",
   },
   {
     key: "youtube",
@@ -149,7 +142,7 @@ export function AddSocialDialog({
       setUsername("");
       setPlatform("");
       onSuccess?.();
-    } catch (err: any) {
+    } catch (err: unknown) {
       // toast.error(err?.message ?? "Failed to save"); // optional
       console.error(err);
     } finally {

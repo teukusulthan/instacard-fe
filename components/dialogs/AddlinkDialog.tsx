@@ -39,8 +39,9 @@ export function AddLinkDialog({ open, onOpenChange, onCreated }: Props) {
       toast.success("Link created");
       onOpenChange(false);
       router.refresh();
-    } catch (e: any) {
-      toast.error(e?.message ?? "Create link failed");
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : "Create link failed";
+      toast.error(message);
     } finally {
       setSaving(false);
     }
