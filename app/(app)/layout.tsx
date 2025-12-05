@@ -16,7 +16,6 @@ export default function ProtectedLayout({
   const user = useAppSelector(selectUser);
   const status = useAppSelector(selectAuthStatus);
 
-  // Kalau belum login, lempar ke /login?redirect=/dashboard
   React.useEffect(() => {
     if (status === "loading") return;
 

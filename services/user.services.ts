@@ -1,6 +1,7 @@
 import { api } from "@/lib/api";
 
 export type User = {
+  avatar_url: string | null;
   id: string;
   email: string;
   username: string;

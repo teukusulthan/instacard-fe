@@ -15,13 +15,11 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { toPublicUrl } from "@/lib/image-url";
-import { EditProfileDialog } from "@/components/dialogs/EditProfileDialog";
 import { getMe, type User } from "@/services/user.services";
 import { logoutRequest } from "@/services/auth.services";
+import { EditProfileDialog } from "./dialogs/EditProfileDialog";
 
 export type NavbarProps = {
-  brand?: string;
   brandHref?: string;
   profileHandle?: string;
   baseDomain?: string;
@@ -32,7 +30,7 @@ export type NavbarProps = {
   translucent?: boolean;
   rightActions?: React.ReactNode;
   showUserNameNearBrand?: boolean;
-  onProfileUpdated?: (user: any) => void;
+  onProfileUpdated?: (user: User) => void;
 };
 
 function getInitials(name?: string) {
@@ -59,18 +57,25 @@ function useSimpleTheme() {
       if (stored === "dark" || stored === "light") initial = stored;
       else if (window.matchMedia("(prefers-color-scheme: dark)").matches)
         initial = "dark";
-    } catch {}
+    } catch {
+      // ignore
+    }
     setTheme(initial);
+    if (initial === "dark") {
+      document.documentElement.classList.add("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+    }
   }, []);
 
   React.useEffect(() => {
-    const root = document.documentElement;
-    if (theme === "dark") root.classList.add("dark");
-    else root.classList.remove("dark");
+    if (!mounted) return;
     try {
       localStorage.setItem("theme", theme);
-    } catch {}
-  }, [theme]);
+    } catch {
+      // ignore
+    }
+  }, [theme, mounted]);
 
   return {
     theme,
@@ -79,8 +84,14 @@ function useSimpleTheme() {
   };
 }
 
+function toPublicUrl(path?: string | null) {
+  if (!path) return "";
+  if (path.startsWith("http://") || path.startsWith("https://")) return path;
+  if (path.startsWith("/")) return path;
+  return `/${path}`;
+}
+
 export function Navbar({
-  brand = "Instacard",
   brandHref = "",
   profileHandle,
   baseDomain = "instacard.app",
@@ -122,10 +133,11 @@ export function Navbar({
           80
         );
         const bio = (u?.bio ?? "") || "";
-        const avatarUrl =
-          toPublicUrl((u as any)?.avatar_url ?? (u as any)?.avatar ?? "") || "";
+        const avatarUrl = toPublicUrl(u.avatar_url ?? u.avatar ?? "") || "";
         setProfile({ name, bio, avatarUrl });
-      } catch {}
+      } catch {
+        // ignore
+      }
     })();
     return () => {
       ok = false;
@@ -157,6 +169,27 @@ export function Navbar({
     }
   }, [loggingOut, onLogout, router]);
 
+  const handleCopyPublicUrl = React.useCallback(async () => {
+    if (!publicUrl) return;
+    try {
+      await navigator.clipboard.writeText(`https://${publicUrl}`);
+      toast.success("Public link copied");
+    } catch {
+      toast.error("Failed to copy link");
+    }
+  }, [publicUrl]);
+
+  const handleToggleTheme = React.useCallback(() => {
+    toggle();
+    if (mounted) {
+      if (theme === "dark") {
+        document.documentElement.classList.remove("dark");
+      } else {
+        document.documentElement.classList.add("dark");
+      }
+    }
+  }, [toggle, mounted, theme]);
+
   return (
     <header
       className={[
@@ -187,20 +220,27 @@ export function Navbar({
               className="mx-2 h-7 hidden sm:block"
             />
 
-            <Link
-              href={defaultPreviewHref}
-              target={previewNewTab ? "_blank" : undefined}
-              className="inline-flex"
-            >
-              <Button
-                variant="outline"
-                className="cursor-pointer rounded-full h-9 px-4 text-sm"
-                title="See preview"
-              >
-                <Eye className="mr-2 h-4 w-4" />
-                See preview
-              </Button>
-            </Link>
+            <div className="hidden items-center gap-2 text-xs text-muted-foreground sm:flex">
+              {publicUrl ? (
+                <>
+                  <span className="hidden md:inline">Public profile:</span>
+                  <button
+                    type="button"
+                    onClick={handleCopyPublicUrl}
+                    className="inline-flex items-center gap-1 rounded-full border bg-muted/60 px-2.5 py-1 text-[11px] font-medium text-foreground shadow-sm transition hover:bg-muted"
+                  >
+                    <span className="truncate max-w-[120px] sm:max-w-[160px]">
+                      {publicUrl}
+                    </span>
+                    <Copy className="h-3.5 w-3.5" />
+                  </button>
+                </>
+              ) : (
+                <span className="text-xs text-muted-foreground">
+                  Connect your profile to go live faster.
+                </span>
+              )}
+            </div>
           </div>
 
           <div className="flex items-center gap-2.5">
@@ -208,77 +248,98 @@ export function Navbar({
               <div className="hidden sm:block">{rightActions}</div>
             ) : null}
 
-            {publicUrl && (
-              <button
-                type="button"
-                onClick={() => {
-                  navigator.clipboard.writeText(publicUrl);
-                  toast.success("Profile URL copied");
-                }}
-                className="hidden md:inline-flex cursor-pointer items-center gap-2 rounded-full border bg-card/70 px-3.5 py-1.5 text-[13px] text-muted-foreground shadow-sm"
-                title="Copy profile URL"
+            {previewHref ? (
+              <Link
+                href={previewHref}
+                target={previewNewTab ? "_blank" : "_self"}
               >
-                <span className="truncate max-w-[200px]">{publicUrl}</span>
-                <Copy className="h-3.5 w-3.5 opacity-70" />
-              </button>
-            )}
+                <Button
+                  variant="outline"
+                  className="cursor-pointer rounded-full h-9 px-4 text-sm"
+                  title="See preview"
+                >
+                  <Eye className="mr-2 h-4 w-4" />
+                  See preview
+                </Button>
+              </Link>
+            ) : null}
 
             <Button
-              variant="outline"
+              variant="ghost"
               size="icon"
-              className="h-9 w-9 rounded-full cursor-pointer"
-              onClick={toggle}
+              className="h-8 w-8 rounded-full"
+              onClick={handleToggleTheme}
               title={title}
-              aria-label={title}
             >
-              {mounted ? (
-                theme === "dark" ? (
-                  <Sun className="h-4 w-4" />
-                ) : (
-                  <Moon className="h-4 w-4" />
-                )
-              ) : null}
+              {theme === "dark" ? (
+                <Sun className="h-4 w-4" />
+              ) : (
+                <Moon className="h-4 w-4" />
+              )}
             </Button>
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button
-                  className="outline-none rounded-full focus-visible:ring-2 focus-visible:ring-ring"
-                  aria-label="User menu"
+                  type="button"
+                  className="inline-flex h-9 w-9 items-center justify-center rounded-full border bg-muted/60 text-xs font-medium shadow-sm transition hover:bg-muted"
                 >
-                  <Avatar className="h-9 w-9 aspect-square shrink-0 rounded-full overflow-hidden ring-1 cursor-pointer ring-border">
+                  <Avatar className="h-7 w-7">
                     <AvatarImage
-                      className="h-full w-full object-cover"
                       src={avatarSrc}
-                      alt={profile.name || "User"}
+                      alt={profile.name || "User avatar"}
                     />
-                    <AvatarFallback className="text-[11px] font-medium">
+                    <AvatarFallback className="text-[11px]">
                       {getInitials(profile.name)}
                     </AvatarFallback>
                   </Avatar>
                 </button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-44">
+              <DropdownMenuContent align="end" className="w-52">
+                <div className="flex items-center gap-2 px-2 py-1.5">
+                  <Avatar className="h-8 w-8">
+                    <AvatarImage
+                      src={avatarSrc}
+                      alt={profile.name || "User avatar"}
+                    />
+                    <AvatarFallback className="text-[11px]">
+                      {getInitials(profile.name)}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium">
+                      {profile.name || "User"}
+                    </p>
+                    {profileHandle ? (
+                      <p className="truncate text-xs text-muted-foreground">
+                        @{profileHandle}
+                      </p>
+                    ) : null}
+                  </div>
+                </div>
+                <Separator className="my-1" />
                 <DropdownMenuItem
-                  className="gap-2 cursor-pointer"
-                  onSelect={(e) => {
-                    e.preventDefault();
-                    setOpenEdit(true);
-                  }}
+                  className="cursor-pointer text-xs"
+                  onClick={() => setOpenEdit(true)}
                 >
-                  <Pencil className="h-4 w-4" />
+                  <Pencil className="mr-2 h-3.5 w-3.5" />
                   Edit profile
                 </DropdownMenuItem>
+                {publicUrl ? (
+                  <DropdownMenuItem
+                    className="cursor-pointer text-xs"
+                    onClick={handleCopyPublicUrl}
+                  >
+                    <Copy className="mr-2 h-3.5 w-3.5" />
+                    Copy public link
+                  </DropdownMenuItem>
+                ) : null}
                 <DropdownMenuItem
-                  className="text-destructive focus:text-destructive gap-2 cursor-pointer"
-                  onSelect={(e) => {
-                    e.preventDefault();
-                    handleLogout();
-                  }}
-                  disabled={loggingOut}
+                  className="cursor-pointer text-xs text-red-600 focus:text-red-600"
+                  onClick={handleLogout}
                 >
-                  <LogOut className="h-4 w-4" />
-                  Logout
+                  <LogOut className="mr-2 h-3.5 w-3.5" />
+                  {loggingOut ? "Logging out..." : "Logout"}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -295,13 +356,12 @@ export function Navbar({
           name: profile.name,
           bio: profile.bio,
         }}
-        onSuccess={(user) => {
+        onSuccess={(user: User) => {
           setProfile((p) => ({
             name: user.name ?? p.name,
             bio: user.bio ?? p.bio,
             avatarUrl:
-              toPublicUrl((user as any).avatar_url ?? (user as any).avatar) ??
-              p.avatarUrl,
+              toPublicUrl(user.avatar_url ?? user.avatar ?? "") ?? p.avatarUrl,
           }));
           toast.success("Profile updated");
           onProfileUpdated?.(user);
