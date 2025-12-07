@@ -27,7 +27,7 @@ import { LoginSchema, type LoginValues } from "@/shemas/auth.schema";
 import { Spinner } from "@/components/ui/spinner";
 import { getMe } from "@/services/user.services";
 
-export default function LoginPage() {
+function LoginPageInner() {
   const router = useRouter();
   const search = useSearchParams();
   const dispatch = useAppDispatch();
@@ -213,5 +213,19 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <React.Suspense
+      fallback={
+        <div className="flex justify-center items-center min-h-screen">
+          <Spinner className="size-8 text-neutral-400" />
+        </div>
+      }
+    >
+      <LoginPageInner />
+    </React.Suspense>
   );
 }
