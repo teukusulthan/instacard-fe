@@ -33,6 +33,8 @@ export type NavbarProps = {
   rightActions?: React.ReactNode;
   showUserNameNearBrand?: boolean;
   onProfileUpdated?: (user: User) => void;
+  userName?: string;
+  avatarUrl?: string | null;
 };
 
 type UserWithAvatar = User & {
@@ -66,9 +68,7 @@ function useSimpleTheme() {
       if (stored === "dark" || stored === "light") initial = stored;
       else if (window.matchMedia("(prefers-color-scheme: dark)").matches)
         initial = "dark";
-    } catch {
-      // ignore
-    }
+    } catch {}
     setTheme(initial);
   }, []);
 
@@ -78,9 +78,7 @@ function useSimpleTheme() {
     else root.classList.remove("dark");
     try {
       localStorage.setItem("theme", theme);
-    } catch {
-      // ignore
-    }
+    } catch {}
   }, [theme]);
 
   return {
@@ -144,9 +142,7 @@ export function Navbar({
           avatarUrl,
           handle: handleFromUser,
         });
-      } catch {
-        // ignore
-      }
+      } catch {}
     })();
     return () => {
       ok = false;

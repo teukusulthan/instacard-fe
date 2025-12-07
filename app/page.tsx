@@ -6,7 +6,6 @@ import {
   ArrowRight,
   Sparkles,
   LinkIcon,
-  LineChart,
   ShieldCheck,
   Zap,
   CheckCircle2,
@@ -25,13 +24,6 @@ import {
   CardContent,
   CardFooter,
 } from "@/components/ui/card";
-import Image from "next/image";
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import {
