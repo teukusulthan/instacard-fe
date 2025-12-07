@@ -56,14 +56,20 @@ import {
   upsertSocial,
   restoreSocial,
   type SocialLink,
+  type SocialPlatform,
   SoftDeleteSocial,
   HardDeleteSocial,
 } from "@/services/social.services";
 import { toPublicUrl } from "@/lib/image-url";
 
+type UserWithAvatar = User & {
+  avatar_url?: string | null;
+  avatar?: string | null;
+};
+
 type SocialItem = {
   id: string;
-  key: string;
+  key: SocialPlatform;
   label: string;
   icon: IconType;
   url?: string;
@@ -93,12 +99,15 @@ const getInitials = (name: string) =>
     .map((n) => n[0]?.toUpperCase())
     .join("") || "U";
 
-const toProfile = (u: User | null | undefined): Profile => ({
-  name: (u?.name?.trim() || u?.username?.trim() || "User").slice(0, 80),
-  bio: (u?.bio ?? "") || "",
-  avatarUrl: toPublicUrl((u as any)?.avatar_url ?? (u as any)?.avatar ?? ""),
-  handle: u?.username || "username",
-});
+const toProfile = (u: UserWithAvatar | null | undefined): Profile => {
+  const user = u ?? ({} as UserWithAvatar);
+  return {
+    name: (user.name?.trim() || user.username?.trim() || "User").slice(0, 80),
+    bio: (user.bio ?? "") || "",
+    avatarUrl: toPublicUrl(user.avatar_url ?? user.avatar ?? "") || "",
+    handle: user.username || "username",
+  };
+};
 
 const getDomain = (url: string) => {
   try {
@@ -183,7 +192,7 @@ export default function DashboardPage() {
   const [openEditSocial, setOpenEditSocial] = React.useState(false);
   const [selectedSocial, setSelectedSocial] = React.useState<{
     id: string | null;
-    platform: string | null;
+    platform: SocialPlatform | null;
     username?: string | null;
   }>({ id: null, platform: null, username: null });
   const [openSocialPopover, setOpenSocialPopover] = React.useState<
@@ -210,16 +219,25 @@ export default function DashboardPage() {
     let mounted = true;
     (async () => {
       try {
-        const user = await getMe();
+        const user = (await getMe()) as UserWithAvatar;
         if (!mounted) return;
         setProfile(toProfile(user));
         await Promise.all([refetchLinks(), refetchSocials()]);
         if (!mounted) return;
-      } catch (e: any) {
+      } catch (e: unknown) {
         if (!mounted) return;
-        const status = e?.response?.status;
+
+        let status: number | undefined;
+        let message: string | undefined;
+
+        if (e && typeof e === "object") {
+          const err = e as { response?: { status?: number }; message?: string };
+          status = err.response?.status;
+          message = err.message;
+        }
+
         if (status === 401) toast.error("Not authenticated");
-        else toast.error(e?.message || "Failed to load data");
+        else toast.error(message || "Failed to load data");
       } finally {
         if (mounted) setLoading(false);
       }
@@ -239,7 +257,7 @@ export default function DashboardPage() {
     setOpenEditLink(true);
   };
 
-  const onSaveEditedLink = async (values: { title: string; url: string }) => {
+  const _onSaveEditedLink = async (values: { title: string; url: string }) => {
     if (!editing) return;
     const prev = links;
     setLinks((p) =>
@@ -249,9 +267,14 @@ export default function DashboardPage() {
       await updateLinkSvc(editing.id, values);
       await refetchLinks();
       toast.success("Link updated");
-    } catch (e: any) {
+    } catch (e: unknown) {
       setLinks(prev);
-      toast.error(e?.message ?? "Failed to update link");
+      let message: string | undefined;
+      if (e && typeof e === "object" && "message" in e) {
+        const err = e as { message?: string };
+        message = err.message;
+      }
+      toast.error(message ?? "Failed to update link");
       return;
     } finally {
       setOpenEditLink(false);
@@ -275,9 +298,14 @@ export default function DashboardPage() {
       toast.success("Link deleted");
       setOpenConfirmDelete(false);
       setTargetDelete(null);
-    } catch (e: any) {
+    } catch (e: unknown) {
       setLinks(prev);
-      toast.error(e?.message ?? "Failed to delete link");
+      let message: string | undefined;
+      if (e && typeof e === "object" && "message" in e) {
+        const err = e as { message?: string };
+        message = err.message;
+      }
+      toast.error(message ?? "Failed to delete link");
     } finally {
       setDeleting(false);
     }
@@ -292,11 +320,16 @@ export default function DashboardPage() {
       await restoreSocial(s.id);
       await refetchSocials();
       toast.success("Social restored");
-    } catch (e: any) {
+    } catch (e: unknown) {
       setSocials((prev) =>
         prev.map((x) => (x.id === s.id ? { ...x, is_active: false } : x))
       );
-      toast.error(e?.message ?? "Failed to restore");
+      let message: string | undefined;
+      if (e && typeof e === "object" && "message" in e) {
+        const err = e as { message?: string };
+        message = err.message;
+      }
+      toast.error(message ?? "Failed to restore");
     } finally {
       setOpenSocialPopover(null);
     }
@@ -307,8 +340,13 @@ export default function DashboardPage() {
       await HardDeleteSocial(s.id);
       await refetchSocials();
       toast.success("Social deleted");
-    } catch (e: any) {
-      toast.error(e?.message ?? "Failed to delete");
+    } catch (e: unknown) {
+      let message: string | undefined;
+      if (e && typeof e === "object" && "message" in e) {
+        const err = e as { message?: string };
+        message = err.message;
+      }
+      toast.error(message ?? "Failed to delete");
     } finally {
       setOpenSocialPopover(null);
     }
@@ -561,7 +599,7 @@ export default function DashboardPage() {
                     username: null,
                   });
               }}
-              platform={(selectedSocial.platform as any) ?? null}
+              platform={selectedSocial.platform}
               initialUsername={selectedSocial.username ?? ""}
               onSave={async ({ platform, username }) => {
                 const resp = await upsertSocial({ platform, username });
@@ -585,14 +623,14 @@ export default function DashboardPage() {
                 bio: profile.bio,
               }}
               onSuccess={(user) => {
+                const extended = user as UserWithAvatar;
                 setProfile((p) => ({
                   ...p,
                   name: user.name ?? p.name,
                   bio: user.bio ?? p.bio,
                   avatarUrl:
-                    toPublicUrl(
-                      (user as any).avatar_url ?? (user as any).avatar
-                    ) || p.avatarUrl,
+                    toPublicUrl(extended.avatar_url ?? extended.avatar ?? "") ||
+                    p.avatarUrl,
                 }));
                 toast.success("Profile updated");
               }}

@@ -5,6 +5,11 @@ import { Navbar } from "@/components/Navbar";
 import { Button } from "@/components/ui/button";
 import type { User } from "@/lib/auth";
 
+type UserWithAvatar = User & {
+  avatar_url?: string | null;
+  avatar?: string | null;
+};
+
 export default function DashboardShell({
   user,
   children,
@@ -14,7 +19,9 @@ export default function DashboardShell({
 }) {
   const profileHandle = user?.username ?? "";
   const userName = user?.name || user?.username || "User";
-  const avatarUrlRaw = (user as any)?.avatar_url ?? (user as any)?.avatar ?? "";
+
+  const userWithAvatar = user as UserWithAvatar;
+  const avatarUrlRaw = userWithAvatar.avatar_url ?? userWithAvatar.avatar ?? "";
 
   return (
     <div className="flex min-h-[100dvh] flex-col bg-background text-foreground">

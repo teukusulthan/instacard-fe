@@ -18,7 +18,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { Loader2, Eye, EyeOff } from "lucide-react";
+import { Loader2 } from "lucide-react";
 
 import { useAppDispatch } from "@/stores/hooks";
 import { login } from "@/stores/auth.slice";
@@ -44,9 +44,7 @@ export default function LoginPage() {
 
   const fromLogout = search.get("logged_out") === "1";
 
-  // Guard: kalau sudah punya token dan BUKAN habis logout, lempar ke dashboard
   React.useEffect(() => {
-    // kalau baru logout, jangan cek getMe → langsung tampilkan form
     if (fromLogout) {
       setChecking(false);
       return;
@@ -56,11 +54,10 @@ export default function LoginPage() {
 
     (async () => {
       try {
-        await getMe(); // kalau ini sukses, berarti token masih valid
+        await getMe();
         if (cancelled) return;
         router.replace("/dashboard");
       } catch {
-        // kalau gagal (401, dsb) berarti belum login → tampilkan form
         if (!cancelled) {
           setChecking(false);
         }
